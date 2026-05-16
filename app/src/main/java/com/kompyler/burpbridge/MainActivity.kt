@@ -134,7 +134,7 @@ fun BurpBridgeScreen() {
                 val stopIntent = Intent(context, BurpBridgeVpnService::class.java).apply {
                     action = "STOP_VPN"
                 }
-                context.stopService(stopIntent)
+                context.startService(stopIntent)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
             modifier = Modifier
