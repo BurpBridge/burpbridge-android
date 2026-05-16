@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">BurpBridge</string>
+    <string name="burpbridge_engine">BurpBridge Engine</string>
+    <string name="mac_ip_address_e_g_192_168_1_50">Mac IP Address (e.g., 192.168.1.50)</string>
+    <string name="burp_port_e_g_8080">Burp Port (e.g., 8080)</string>
+    <string name="_8080">8080</string>
+    <string name="start_transparent_proxy">Start Transparent Proxy</string>
+    <string name="stop_proxy">Stop Proxy</string>
+</resources>
