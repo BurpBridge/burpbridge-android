@@ -42,7 +42,7 @@ fun BurpBridgeScreen() {
 
     // State variables for our text fields
     var ipAddress by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("8080") }
+    var port by remember { mutableStateOf("8443") }
 
     // Helper function to start the VPN service
     fun startVpnService() {

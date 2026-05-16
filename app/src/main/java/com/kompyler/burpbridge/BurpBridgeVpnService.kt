@@ -19,24 +19,25 @@ class BurpBridgeVpnService : VpnService() {
         if (intent?.action == "STOP_VPN") {
             Log.i("BurpBridge", "STOP_VPN command received. Committing service suicide.")
 
-            // Shut down Go engine
-            try {
-                Mobile.stopProxy()
-            } catch (e: Exception) {
-                Log.e("BurpBridge", "Error stopping Go engine: ${e.message}")
-            }
+            // Run cleanup on background thread to avoid ANR
+            Thread {
+                try {
+                    Mobile.stopProxy()
+                } catch (e: Exception) {
+                    Log.e("BurpBridge", "Error stopping Go engine: ${e.message}")
+                }
 
-            // Close Android TUN
-            try {
-                vpnInterface?.close()
-            } catch (e: Exception) {
-                Log.e("BurpBridge", "Error closing VPN interface: ${e.message}")
-            }
-            vpnInterface = null
+                try {
+                    vpnInterface?.close()
+                } catch (e: Exception) {
+                    Log.e("BurpBridge", "Error closing VPN interface: ${e.message}")
+                }
+                vpnInterface = null
 
-            // Kill the service
-            stopForeground(true)
-            stopSelf()
+                stopForeground(true)
+                stopSelf()
+            }.start()
+
             return START_NOT_STICKY
         }
 
