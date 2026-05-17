@@ -2,12 +2,10 @@ package com.kompyler.burpbridge.util
 
 import android.content.ContentValues
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.security.KeyChain
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
@@ -135,35 +133,8 @@ class CertificateManager(private val context: Context) {
         }
     }
 
-    fun createKeyChainInstallIntent(certBytes: ByteArray): Intent {
-        Log.d("BurpBridge-Cert", "Creating KeyChain install intent (${certBytes.size} bytes)")
-        return KeyChain.createInstallIntent().apply {
-            putExtra(KeyChain.EXTRA_CERTIFICATE, certBytes)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-
-    fun createFileInstallIntent(certUri: Uri): Intent {
-        Log.d("BurpBridge-Cert", "Creating file install intent for URI: $certUri")
-        return Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(certUri, "application/x-x509-ca-cert")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-
-    fun createSecuritySettingsIntent(): Intent {
-        return Intent(android.provider.Settings.ACTION_SECURITY_SETTINGS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-    }
-
     fun getDownloadUrl(ip: String, port: Int): String {
         return "http://$ip:$port/cert"
-    }
-
-    fun getSuccessMessage(): String {
-        return "Certificate installation has been initiated. Follow the system prompts to complete the installation."
     }
 
     fun getDownloadedMessage(): String {

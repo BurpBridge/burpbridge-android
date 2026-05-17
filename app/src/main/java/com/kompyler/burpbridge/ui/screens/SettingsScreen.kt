@@ -103,26 +103,6 @@ fun SettingsScreen(
     }
 
     when (val state = certificateDownloadState) {
-        is CertificateDownloadState.Installed -> {
-            AlertDialog(
-                onDismissRequest = onResetCertificateState,
-                title = { Text("Certificate Installation") },
-                text = { Text(state.message) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
-                        onResetCertificateState()
-                    }) {
-                        Text("Open Settings")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onResetCertificateState) {
-                        Text("Done")
-                    }
-                }
-            )
-        }
         is CertificateDownloadState.Downloaded -> {
             AlertDialog(
                 onDismissRequest = onResetCertificateState,

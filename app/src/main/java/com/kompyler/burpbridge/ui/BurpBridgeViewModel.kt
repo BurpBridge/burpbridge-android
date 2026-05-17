@@ -50,7 +50,6 @@ data class TargetProfile(
 sealed class CertificateDownloadState {
     object Idle : CertificateDownloadState()
     object Downloading : CertificateDownloadState()
-    data class Installed(val message: String) : CertificateDownloadState()
     data class Downloaded(val message: String) : CertificateDownloadState()
     data class Failed(val message: String, val downloadUrl: String) : CertificateDownloadState()
 }
@@ -262,37 +261,9 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
             val result = certManager.downloadCertificate(settings.targetIp, settings.httpPort)
 
             _certificateDownloadState.value = result.fold(
-                onSuccess = { downloadResult ->
-                    Log.d("BurpBridge-Cert", "Download succeeded, trying KeyChain install intent...")
-                    val keyChainWorked = try {
-                        val keyChainIntent = certManager.createKeyChainInstallIntent(downloadResult.bytes)
-                        app.startActivity(keyChainIntent)
-                        Log.d("BurpBridge-Cert", "KeyChain install intent started successfully")
-                        true
-                    } catch (e: Exception) {
-                        Log.e("BurpBridge-Cert", "KeyChain install failed: ${e.message}", e)
-                        Log.d("BurpBridge-Cert", "Falling back to file install intent...")
-                        false
-                    }
-                    val installed = if (keyChainWorked) {
-                        true
-                    } else {
-                        try {
-                            val fileIntent = certManager.createFileInstallIntent(downloadResult.uri)
-                            app.startActivity(fileIntent)
-                            Log.d("BurpBridge-Cert", "File install intent started successfully")
-                            true
-                        } catch (e: Exception) {
-                            Log.e("BurpBridge-Cert", "File install also failed: ${e.message}", e)
-                            Log.d("BurpBridge-Cert", "Both install methods failed, showing manual instructions")
-                            false
-                        }
-                    }
-                    if (installed) {
-                        CertificateDownloadState.Installed(certManager.getSuccessMessage())
-                    } else {
-                        CertificateDownloadState.Downloaded(certManager.getDownloadedMessage())
-                    }
+                onSuccess = {
+                    Log.d("BurpBridge-Cert", "Download succeeded, opening Security Settings")
+                    CertificateDownloadState.Downloaded(certManager.getDownloadedMessage())
                 },
                 onFailure = { error ->
                     Log.e("BurpBridge-Cert", "Download failed: ${error.message}")
