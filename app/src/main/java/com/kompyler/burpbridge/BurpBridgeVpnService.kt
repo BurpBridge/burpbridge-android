@@ -14,6 +14,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import java.util.concurrent.atomic.AtomicBoolean
 import mobile.Mobile
 
 @SuppressLint("VpnServicePolicy")
@@ -43,6 +44,7 @@ class BurpBridgeVpnService : VpnService() {
     private val handler = Handler(Looper.getMainLooper())
     private var isStopping = false
     private var stopCompleted = false
+    private val stopProxyGuard = AtomicBoolean(false)
     
     private var persistentNotificationEnabled = true
     private var alertOnInterceptEnabled = false
@@ -234,20 +236,24 @@ class BurpBridgeVpnService : VpnService() {
 
         // Step 2: Stop Go proxy in background
         Thread {
-            val stopThread = Thread {
-                try {
-                    Log.d("BurpBridge", "Stopping Go proxy...")
-                    Mobile.stopProxy()
-                    Log.d("BurpBridge", "Go proxy stopped")
-                } catch (e: Exception) {
-                    Log.e("BurpBridge", "Error stopping Go engine: ${e.message}")
+                val stopThread = Thread {
+                    if (stopProxyGuard.compareAndSet(false, true)) {
+                        try {
+                            Log.d("BurpBridge", "Stopping Go proxy...")
+                            Mobile.stopProxy()
+                            Log.d("BurpBridge", "Go proxy stopped")
+                        } catch (e: Exception) {
+                            Log.e("BurpBridge", "Error stopping Go engine: ${e.message}")
+                        }
+                    } else {
+                        Log.d("BurpBridge", "Go proxy already stopped by onDestroy")
+                    }
                 }
-            }
             
             stopThread.start()
             
             try {
-                stopThread.join(3000)
+                stopThread.join(5000)
                 if (stopThread.isAlive) {
                     Log.w("BurpBridge", "Go stop timed out, continuing anyway")
                 }
@@ -290,10 +296,14 @@ class BurpBridgeVpnService : VpnService() {
         super.onDestroy()
         Log.d("BurpBridge", "VPN Service destroyed")
         
-        try {
-            Mobile.stopProxy()
-        } catch (e: Exception) {
-            Log.e("BurpBridge", "Error stopping Go engine: ${e.message}")
+        if (stopProxyGuard.compareAndSet(false, true)) {
+            try {
+                Mobile.stopProxy()
+            } catch (e: Exception) {
+                Log.e("BurpBridge", "Error stopping Go engine: ${e.message}")
+            }
+        } else {
+            Log.d("BurpBridge", "onDestroy: Go proxy already stopped")
         }
 
         try {
