@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -360,6 +361,7 @@ private fun DialogTextField(
     keyboardType: androidx.compose.ui.text.input.KeyboardType = KeyboardType.Text
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(modifier = modifier) {
         Text(
@@ -384,7 +386,14 @@ private fun DialogTextField(
                 onValueChange = onValueChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .onFocusChanged { isFocused = it.isFocused },
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            isFocused = true
+                        } else {
+                            isFocused = false
+                            keyboardController?.hide()
+                        }
+                    },
                 singleLine = true,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
                 cursorBrush = SolidColor(CyberOrange),

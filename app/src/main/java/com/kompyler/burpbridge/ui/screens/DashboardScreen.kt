@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -510,6 +511,7 @@ private fun EditableConfigRow(
 ) {
     var localValue by remember { mutableStateOf(value) }
     var isFocused by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(value) {
         if (!isFocused) {
@@ -552,15 +554,22 @@ private fun EditableConfigRow(
                     value = localValue,
                     onValueChange = { text ->
                         localValue = text
-                        if (isNumeric) {
-                            text.toIntOrNull()?.let { onValueChange(text) }
-                        } else {
-                            onValueChange(text)
-                        }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onFocusChanged { isFocused = it.isFocused },
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused) {
+                                isFocused = true
+                            } else {
+                                isFocused = false
+                                keyboardController?.hide()
+                                if (isNumeric) {
+                                    localValue.toIntOrNull()?.let { onValueChange(localValue) }
+                                } else {
+                                    onValueChange(localValue)
+                                }
+                            }
+                        },
                     singleLine = true,
                     cursorBrush = SolidColor(CyberOrange),
                     textStyle = TextStyle(
