@@ -415,7 +415,7 @@ private fun NotificationSettingsSection(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 NotificationToggle(
-                    title = "Lock Notification",
+                    title = "Persist Notification",
                     description = "Prevent the notification from being dismissed by swiping",
                     isChecked = persistentNotification,
                     onToggle = onPersistentNotificationChange
@@ -511,69 +511,80 @@ private fun ThemeSection(
             shape = RoundedCornerShape(4.dp)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ThemeButton(
-                        label = "System",
-                        icon = Icons.Default.BrightnessAuto,
-                        isSelected = currentThemeMode == ThemeMode.SYSTEM,
-                        onClick = { onThemeModeChange(ThemeMode.SYSTEM) },
-                        modifier = Modifier.weight(1f)
-                    )
+                ThemeOption(
+                    label = "System",
+                    icon = Icons.Default.BrightnessAuto,
+                    isSelected = currentThemeMode == ThemeMode.SYSTEM,
+                    onClick = { onThemeModeChange(ThemeMode.SYSTEM) }
+                )
 
-                    ThemeButton(
-                        label = "Light",
-                        icon = Icons.Default.LightMode,
-                        isSelected = currentThemeMode == ThemeMode.LIGHT,
-                        onClick = { onThemeModeChange(ThemeMode.LIGHT) },
-                        modifier = Modifier.weight(1f)
-                    )
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
 
-                    ThemeButton(
-                        label = "Dark",
-                        icon = Icons.Default.DarkMode,
-                        isSelected = currentThemeMode == ThemeMode.DARK,
-                        onClick = { onThemeModeChange(ThemeMode.DARK) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                ThemeOption(
+                    label = "Light",
+                    icon = Icons.Default.LightMode,
+                    isSelected = currentThemeMode == ThemeMode.LIGHT,
+                    onClick = { onThemeModeChange(ThemeMode.LIGHT) }
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                ThemeOption(
+                    label = "Dark",
+                    icon = Icons.Default.DarkMode,
+                    isSelected = currentThemeMode == ThemeMode.DARK,
+                    onClick = { onThemeModeChange(ThemeMode.DARK) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ThemeButton(
+private fun ThemeOption(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(44.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.surface,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary
-            else MaterialTheme.colorScheme.onSurface
-        ),
-        shape = RoundedCornerShape(4.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        RadioButton(
+            selected = isSelected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = MaterialTheme.colorScheme.primary
+            )
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
         Icon(
             imageVector = icon,
             contentDescription = null,
-            modifier = Modifier.size(18.dp)
+            tint = if (isSelected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp)
         )
 
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
         Text(
             text = label,
-            fontSize = 12.sp
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

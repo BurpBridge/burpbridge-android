@@ -60,10 +60,6 @@ class BurpBridgeVpnService : VpnService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("BurpBridge", "onStartCommand received with action: ${intent?.action}")
 
-        // Extract settings from intent
-        persistentNotificationEnabled = intent?.getBooleanExtra(EXTRA_PERSISTENT_NOTIFICATION, true) ?: true
-        alertOnInterceptEnabled = intent?.getBooleanExtra(EXTRA_ALERT_ON_INTERCEPT, false) ?: false
-
         when (intent?.action) {
             ACTION_STOP -> {
                 Log.i("BurpBridge", "STOP_VPN command received")
@@ -71,6 +67,8 @@ class BurpBridgeVpnService : VpnService() {
                 return START_NOT_STICKY
             }
             ACTION_START -> {
+                persistentNotificationEnabled = intent.getBooleanExtra(EXTRA_PERSISTENT_NOTIFICATION, true)
+                alertOnInterceptEnabled = intent.getBooleanExtra(EXTRA_ALERT_ON_INTERCEPT, false)
                 val targetAddress = intent.getStringExtra("TARGET_ADDRESS")
                 if (targetAddress.isNullOrBlank()) {
                     Log.e("BurpBridge", "No target address provided")

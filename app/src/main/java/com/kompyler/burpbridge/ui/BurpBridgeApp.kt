@@ -73,7 +73,10 @@ sealed class BottomNavItem(
 }
 
 @Composable
-fun BurpBridgeApp() {
+fun BurpBridgeApp(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onThemeModeChange: (ThemeMode) -> Unit = {}
+) {
     val context = LocalContext.current
     val activity = context as? Activity
     val application = activity?.application as? com.kompyler.burpbridge.BurpBridgeApp
@@ -85,7 +88,6 @@ fun BurpBridgeApp() {
     var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
     var previousScreen by remember { mutableStateOf(Screen.DASHBOARD) }
     var isVpnConnected by remember { mutableStateOf(false) }
-    var themeMode by remember { mutableStateOf(ThemeMode.DARK) }
 
     val proxySettings by viewModel.proxySettings.collectAsState()
     val apps by viewModel.apps.collectAsState()
@@ -210,7 +212,7 @@ fun BurpBridgeApp() {
                     currentScreen = previousScreen
                 },
                 themeMode = themeMode,
-                onThemeModeChange = { themeMode = it },
+                onThemeModeChange = onThemeModeChange,
                 isVpnConnected = isVpnConnected,
                 onVpnStatusChange = {
                     isVpnConnected = it
