@@ -283,7 +283,7 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
 
     fun getTargetAddress(): String {
         val settings = _proxySettings.value
-        return "${settings.targetIp}:${settings.httpPort}"
+        return "${settings.targetIp}:${settings.httpPort}:${settings.httpsPort}"
     }
 
     fun selectProfile(profileId: String?) {
