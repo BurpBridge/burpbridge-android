@@ -49,8 +49,9 @@ data class TargetProfile(
 sealed class CertificateDownloadState {
     object Idle : CertificateDownloadState()
     object Downloading : CertificateDownloadState()
-    data class Success(val message: String) : CertificateDownloadState()
-    data class Failed(val errorMessage: String) : CertificateDownloadState()
+    data class Installed(val message: String) : CertificateDownloadState()
+    data class Downloaded(val message: String) : CertificateDownloadState()
+    data class Failed(val message: String, val downloadUrl: String) : CertificateDownloadState()
 }
 
 class BurpBridgeViewModel(application: Application) : AndroidViewModel(application) {
@@ -249,17 +250,40 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
 
     fun downloadBurpCertificate() {
         val settings = _proxySettings.value
+        val app = getApplication<Application>()
         _certificateDownloadState.value = CertificateDownloadState.Downloading
 
         viewModelScope.launch {
-            val certManager = com.kompyler.burpbridge.util.CertificateManager(getApplication())
+            val certManager = com.kompyler.burpbridge.util.CertificateManager(app)
+            val downloadUrl = certManager.getDownloadUrl(settings.targetIp, settings.httpPort)
             val result = certManager.downloadCertificate(settings.targetIp, settings.httpPort)
+
             _certificateDownloadState.value = result.fold(
-                onSuccess = {
-                    CertificateDownloadState.Success(certManager.getSuccessMessage())
+                onSuccess = { downloadResult ->
+                    val installed = try {
+                        val keyChainIntent = certManager.createKeyChainInstallIntent(downloadResult.bytes)
+                        app.startActivity(keyChainIntent)
+                        true
+                    } catch (_: Exception) {
+                        try {
+                            val fileIntent = certManager.createFileInstallIntent(downloadResult.uri)
+                            app.startActivity(fileIntent)
+                            true
+                        } catch (_: Exception) {
+                            false
+                        }
+                    }
+                    if (installed) {
+                        CertificateDownloadState.Installed(certManager.getSuccessMessage())
+                    } else {
+                        CertificateDownloadState.Downloaded(certManager.getDownloadedMessage())
+                    }
                 },
                 onFailure = {
-                    CertificateDownloadState.Failed(certManager.getManualInstructions())
+                    CertificateDownloadState.Failed(
+                        message = certManager.getFailedMessage(downloadUrl),
+                        downloadUrl = downloadUrl
+                    )
                 }
             )
         }

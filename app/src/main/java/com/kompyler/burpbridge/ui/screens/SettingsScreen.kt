@@ -1,7 +1,12 @@
 package com.kompyler.burpbridge.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.provider.Settings
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -98,15 +103,31 @@ fun SettingsScreen(
     }
 
     when (val state = certificateDownloadState) {
-        is CertificateDownloadState.Success -> {
+        is CertificateDownloadState.Installed -> {
             AlertDialog(
                 onDismissRequest = onResetCertificateState,
-                title = {
-                    Text("Certificate Downloaded")
+                title = { Text("Certificate Installation") },
+                text = { Text(state.message) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                        onResetCertificateState()
+                    }) {
+                        Text("Open Settings")
+                    }
                 },
-                text = {
-                    Text(state.message)
-                },
+                dismissButton = {
+                    TextButton(onClick = onResetCertificateState) {
+                        Text("Done")
+                    }
+                }
+            )
+        }
+        is CertificateDownloadState.Downloaded -> {
+            AlertDialog(
+                onDismissRequest = onResetCertificateState,
+                title = { Text("Certificate Downloaded") },
+                text = { Text(state.message) },
                 confirmButton = {
                     TextButton(onClick = {
                         context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
@@ -125,11 +146,62 @@ fun SettingsScreen(
         is CertificateDownloadState.Failed -> {
             AlertDialog(
                 onDismissRequest = onResetCertificateState,
-                title = {
-                    Text("Download Failed")
-                },
+                title = { Text("Download Failed") },
                 text = {
-                    Text(state.errorMessage)
+                    Column {
+                        Text(state.message)
+                        Spacer(Modifier.height(16.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    clipboard.setPrimaryClip(
+                                        ClipData.newPlainText("Burp CA URL", state.downloadUrl)
+                                    )
+                                    Toast.makeText(
+                                        context,
+                                        "URL copied to clipboard",
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                            },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text("Copy URL", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.downloadUrl))
+                                try {
+                                    context.startActivity(intent)
+                                    } catch (_: Exception) {
+                                        Toast.makeText(
+                                            context,
+                                            "No browser available",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(
+                                    Icons.Default.OpenInBrowser,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text("Open URL", fontSize = 11.sp)
+                            }
+                        }
+                    }
                 },
                 confirmButton = {
                     TextButton(onClick = {
