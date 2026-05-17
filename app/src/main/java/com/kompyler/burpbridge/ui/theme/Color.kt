@@ -129,3 +129,11 @@ val OnTertiaryFixedVariantLight = Color(0xFF930012)
 
 // Scrim
 val Scrim = Color(0xFF000000)
+
+// Cyberpunk theme colors
+val CyberBackground = Color(0xFF141414)
+val CyberCardSurface = Color(0xFF1A1A1A)
+val CyberCardOutline = Color(0xFF332A25)
+val CyberGridDot = Color(0xFF242424)
+val CyberSecondaryText = Color(0xFF888888)
+val CyberOrange = Color(0xFFFF6633)

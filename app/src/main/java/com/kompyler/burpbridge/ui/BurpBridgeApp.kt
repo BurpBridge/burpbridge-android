@@ -12,7 +12,6 @@ import android.net.VpnService
 import android.util.Log
 import android.widget.Toast
 import android.Manifest
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -34,13 +33,15 @@ import com.kompyler.burpbridge.ui.screens.AppsScreen
 import com.kompyler.burpbridge.ui.screens.DashboardScreen
 import com.kompyler.burpbridge.ui.screens.SettingsScreen
 import com.kompyler.burpbridge.ui.screens.SplashScreen
+import com.kompyler.burpbridge.ui.screens.TargetProfilesScreen
 import com.kompyler.burpbridge.ui.theme.ThemeMode
 
 enum class Screen {
     SPLASH,
     DASHBOARD,
     APPS,
-    SETTINGS
+    SETTINGS,
+    TARGET_PROFILES
 }
 
 sealed class BottomNavItem(
@@ -76,20 +77,29 @@ fun BurpBridgeApp() {
     val context = LocalContext.current
     val activity = context as? Activity
     val application = activity?.application as? com.kompyler.burpbridge.BurpBridgeApp
-    
+
     val viewModel: BurpBridgeViewModel = viewModel(
         factory = BurpBridgeViewModelFactory(context.applicationContext as com.kompyler.burpbridge.BurpBridgeApp)
     )
 
     var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
+    var previousScreen by remember { mutableStateOf(Screen.DASHBOARD) }
     var isVpnConnected by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(ThemeMode.DARK) }
 
     val proxySettings by viewModel.proxySettings.collectAsState()
     val apps by viewModel.apps.collectAsState()
     val proxyAllApps by viewModel.proxyAllApps.collectAsState()
+    val sessionDuration by viewModel.sessionDuration.collectAsState()
+    val targetProfiles by viewModel.targetProfiles.collectAsState()
+    val selectedProfileId by viewModel.selectedProfileId.collectAsState()
 
     var isStopping by remember { mutableStateOf(false) }
+
+    fun navigateTo(screen: Screen) {
+        previousScreen = currentScreen
+        currentScreen = screen
+    }
 
     DisposableEffect(Unit) {
         val receiver = object : BroadcastReceiver() {
@@ -97,7 +107,7 @@ fun BurpBridgeApp() {
                 when (intent.action) {
                     BurpBridgeVpnService.ACTION_STATUS -> {
                         val status = intent.getStringExtra(BurpBridgeVpnService.EXTRA_VPN_STATUS)
-                        
+
                         when (status) {
                             BurpBridgeVpnService.VPN_STATUS_STARTING -> {
                                 isStopping = false
@@ -132,7 +142,6 @@ fun BurpBridgeApp() {
         val filter = IntentFilter(BurpBridgeVpnService.ACTION_STATUS)
         context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
 
-        // Check if VPN is actually running when app starts
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = connectivityManager.activeNetwork
         val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
@@ -190,11 +199,14 @@ fun BurpBridgeApp() {
         else -> {
             MainScaffold(
                 currentScreen = currentScreen,
-                onScreenChange = { currentScreen = it },
+                onScreenChange = { navigateTo(it) },
+                onBack = {
+                    currentScreen = previousScreen
+                },
                 themeMode = themeMode,
                 onThemeModeChange = { themeMode = it },
                 isVpnConnected = isVpnConnected,
-                onVpnStatusChange = { 
+                onVpnStatusChange = {
                     isVpnConnected = it
                     viewModel.setVpnConnected(it)
                 },
@@ -221,10 +233,17 @@ fun BurpBridgeApp() {
                 onUpdateAutoStart = { viewModel.updateAutoStartVpn(it) },
                 onUpdatePersistentNotification = { viewModel.updatePersistentNotification(it) },
                 onUpdateAlertOnIntercept = { viewModel.updateAlertOnIntercept(it) },
+                onSelectProfile = { viewModel.selectProfile(it) },
+                onAddProfile = { name, ip, http, https -> viewModel.addProfile(name, ip, http, https) },
+                onUpdateProfile = { viewModel.updateProfile(it) },
+                onDeleteProfile = { viewModel.deleteProfile(it) },
                 proxySettings = proxySettings,
                 proxyAllApps = proxyAllApps,
                 apps = apps,
-                logs = viewModel.logs.collectAsState().value
+                logs = viewModel.logs.collectAsState().value,
+                sessionDuration = sessionDuration,
+                targetProfiles = targetProfiles,
+                selectedProfileId = selectedProfileId
             )
         }
     }
@@ -235,6 +254,7 @@ fun BurpBridgeApp() {
 private fun MainScaffold(
     currentScreen: Screen,
     onScreenChange: (Screen) -> Unit,
+    onBack: () -> Unit,
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     isVpnConnected: Boolean,
@@ -253,10 +273,17 @@ private fun MainScaffold(
     onUpdateAutoStart: (Boolean) -> Unit,
     onUpdatePersistentNotification: (Boolean) -> Unit,
     onUpdateAlertOnIntercept: (Boolean) -> Unit,
+    onSelectProfile: (String?) -> Unit,
+    onAddProfile: (String, String, Int, Int) -> Unit,
+    onUpdateProfile: (TargetProfile) -> Unit,
+    onDeleteProfile: (String) -> Unit,
     proxySettings: ProxySettings,
     proxyAllApps: Boolean,
     apps: List<AppInfo>,
-    logs: List<LogEntry>
+    logs: List<LogEntry>,
+    sessionDuration: String,
+    targetProfiles: List<TargetProfile>,
+    selectedProfileId: String?
 ) {
     val bottomNavItems = listOf(
         BottomNavItem.Dashboard,
@@ -264,7 +291,7 @@ private fun MainScaffold(
         BottomNavItem.Settings
     )
 
-    val showBottomBar = currentScreen != Screen.SPLASH
+    val showBottomBar = currentScreen in listOf(Screen.DASHBOARD, Screen.APPS, Screen.SETTINGS)
 
     Scaffold(
         bottomBar = {
@@ -324,7 +351,12 @@ private fun MainScaffold(
                         httpPort = proxySettings.httpPort,
                         onIpChange = onUpdateIp,
                         onPortChange = onUpdateHttpPort,
-                        logs = logs.map { it.message }
+                        logs = logs.map { it.message },
+                        sessionDuration = sessionDuration,
+                        selectedProfileId = selectedProfileId,
+                        targetProfiles = targetProfiles,
+                        onSelectProfile = onSelectProfile,
+                        onNavigateToTargetProfiles = { onScreenChange(Screen.TARGET_PROFILES) }
                     )
                 }
 
@@ -350,7 +382,20 @@ private fun MainScaffold(
                         onUpdateHttpsPort = onUpdateHttpsPort,
                         onUpdateAutoStart = onUpdateAutoStart,
                         onUpdatePersistentNotification = onUpdatePersistentNotification,
-                        onUpdateAlertOnIntercept = onUpdateAlertOnIntercept
+                        onUpdateAlertOnIntercept = onUpdateAlertOnIntercept,
+                        onNavigateToTargetProfiles = { onScreenChange(Screen.TARGET_PROFILES) }
+                    )
+                }
+
+                Screen.TARGET_PROFILES -> {
+                    TargetProfilesScreen(
+                        profiles = targetProfiles,
+                        selectedProfileId = selectedProfileId,
+                        onSelectProfile = onSelectProfile,
+                        onAddProfile = onAddProfile,
+                        onUpdateProfile = onUpdateProfile,
+                        onDeleteProfile = onDeleteProfile,
+                        onBack = onBack
                     )
                 }
 

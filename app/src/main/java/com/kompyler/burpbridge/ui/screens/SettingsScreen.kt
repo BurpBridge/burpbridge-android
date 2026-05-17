@@ -36,7 +36,8 @@ fun SettingsScreen(
     onUpdateHttpsPort: (Int) -> Unit,
     onUpdateAutoStart: (Boolean) -> Unit,
     onUpdatePersistentNotification: (Boolean) -> Unit,
-    onUpdateAlertOnIntercept: (Boolean) -> Unit
+    onUpdateAlertOnIntercept: (Boolean) -> Unit,
+    onNavigateToTargetProfiles: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -56,6 +57,10 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         SystemSettingsSection()
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        TargetProfilesSection(onNavigate = onNavigateToTargetProfiles)
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -153,6 +158,55 @@ private fun SystemSettingsSection() {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp)
         )
+    }
+}
+
+@Composable
+private fun TargetProfilesSection(onNavigate: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onNavigate() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        shape = RoundedCornerShape(4.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Dns,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp)
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Target Profiles",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Manage saved proxy targets and ports",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 

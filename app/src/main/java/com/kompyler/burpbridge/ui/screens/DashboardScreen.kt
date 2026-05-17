@@ -1,29 +1,42 @@
 package com.kompyler.burpbridge.ui.screens
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.animation.core.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.SimpleDateFormat
-import java.util.*
+import com.kompyler.burpbridge.ui.TargetProfile
+import com.kompyler.burpbridge.ui.theme.CyberBackground
+import com.kompyler.burpbridge.ui.theme.CyberCardOutline
+import com.kompyler.burpbridge.ui.theme.CyberCardSurface
+import com.kompyler.burpbridge.ui.theme.CyberGridDot
+import com.kompyler.burpbridge.ui.theme.CyberOrange
+import com.kompyler.burpbridge.ui.theme.CyberSecondaryText
 
 @Composable
 fun DashboardScreen(
@@ -35,53 +48,114 @@ fun DashboardScreen(
     httpPort: Int,
     onIpChange: (String) -> Unit,
     onPortChange: (Int) -> Unit,
-    logs: List<String>
+    logs: List<String>,
+    sessionDuration: String = "00:00:00",
+    selectedProfileId: String? = null,
+    targetProfiles: List<TargetProfile> = emptyList(),
+    onSelectProfile: (String?) -> Unit = {},
+    onNavigateToTargetProfiles: () -> Unit = {}
 ) {
     val scrollState = rememberScrollState()
+    val editable = !isVpnConnected
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-    ) {
-        Spacer(modifier = Modifier.height(16.dp))
+    var showProfileSheet by remember { mutableStateOf(false) }
 
-        DashboardHeader()
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        StatusBanner(isConnected = isVpnConnected)
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        TargetConfiguration(
-            ipAddress = targetIp,
-            port = httpPort.toString(),
-            onIpChange = onIpChange,
-            onPortChange = { onPortChange(it.toIntOrNull() ?: httpPort) },
-            enabled = !isVpnConnected
+    if (showProfileSheet) {
+        ProfileSelectorSheet(
+            profiles = targetProfiles,
+            selectedProfileId = selectedProfileId,
+            onSelect = { id ->
+                onSelectProfile(id)
+                showProfileSheet = false
+            },
+            onDismiss = { showProfileSheet = false }
         )
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
+    Box(modifier = Modifier.fillMaxSize()) {
+        DottedGridBackground()
 
-        ActionButtons(
-            isConnected = isVpnConnected,
-            onStartProxy = onStartProxy,
-            onStopProxy = onStopProxy
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
+            DashboardTopBar(
+                sessionDuration = sessionDuration,
+                isActive = isVpnConnected
+            )
 
-        SystemLog(logs = logs)
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(100.dp))
+            HeroSection(
+                isActive = isVpnConnected,
+                onStart = onStartProxy,
+                onStop = onStopProxy
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            TargetConfigCard(
+                ipAddress = targetIp,
+                port = httpPort.toString(),
+                onIpChange = onIpChange,
+                onPortChange = { onPortChange(it.toIntOrNull() ?: httpPort) },
+                editable = editable,
+                selectedProfileId = selectedProfileId,
+                profiles = targetProfiles,
+                onShowProfileSheet = { showProfileSheet = true },
+                onNavigateToProfiles = onNavigateToTargetProfiles
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            SystemLogCard(logs = logs)
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 }
 
 @Composable
-private fun DashboardHeader() {
+private fun DottedGridBackground() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val dotSpacing = 24.dp.toPx()
+        val dotRadius = 1.2.dp.toPx()
+        var x = dotSpacing
+        while (x < size.width) {
+            var y = dotSpacing
+            while (y < size.height) {
+                drawCircle(
+                    color = CyberGridDot,
+                    radius = dotRadius,
+                    center = Offset(x, y)
+                )
+                y += dotSpacing
+            }
+            x += dotSpacing
+        }
+    }
+}
+
+@Composable
+private fun DashboardTopBar(
+    sessionDuration: String,
+    isActive: Boolean
+) {
+    val pulseTransition = rememberInfiniteTransition(label = "pulse")
+    val dotAlpha by pulseTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "dot_alpha"
+    )
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -89,321 +163,575 @@ private fun DashboardHeader() {
         Icon(
             imageVector = Icons.Default.Security,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(28.dp)
+            tint = CyberOrange,
+            modifier = Modifier.size(24.dp)
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
         Text(
             text = "BURPBRIDGE",
-            fontSize = 24.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+            fontFamily = FontFamily.SansSerif,
+            color = Color.White,
+            letterSpacing = 2.sp
         )
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Text(
-            text = getCurrentTime(),
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Box(
+            modifier = Modifier
+                .background(
+                    color = CyberCardSurface,
+                    shape = RoundedCornerShape(6.dp)
+                )
+                .border(
+                    width = 1.dp,
+                    color = CyberCardOutline,
+                    shape = RoundedCornerShape(6.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isActive) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(CyberOrange.copy(alpha = dotAlpha))
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                }
+                Text(
+                    text = sessionDuration,
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    color = if (isActive) CyberOrange else CyberSecondaryText
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun StatusBanner(isConnected: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                if (isConnected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.errorContainer,
-                shape = RoundedCornerShape(4.dp)
-            )
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun HeroSection(
+    isActive: Boolean,
+    onStart: () -> Unit,
+    onStop: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.PowerSettingsNew,
-            contentDescription = null,
-            tint = if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onErrorContainer,
-            modifier = Modifier.size(24.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = if (isActive) "PROXY ACTIVE" else "PROXY OFFLINE",
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = if (isActive) CyberOrange else CyberSecondaryText,
+                letterSpacing = 3.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Box(
+            modifier = Modifier
+                .width(80.dp)
+                .height(1.dp)
+                .background(
+                    brush = Brush.horizontalGradient(
+                        colors = if (isActive) {
+                            listOf(Color.Transparent, CyberOrange, Color.Transparent)
+                        } else {
+                            listOf(Color.Transparent, CyberSecondaryText.copy(alpha = 0.3f), Color.Transparent)
+                        }
+                    )
+                )
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.height(32.dp))
 
-        Text(
-            text = if (isConnected) "# PROXY ACTIVE" else "# PROXY OFFLINE",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isConnected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onErrorContainer
+        PowerButton(
+            isActive = isActive,
+            onClick = { if (isActive) onStop() else onStart() }
         )
     }
 }
 
 @Composable
-private fun TargetConfiguration(
+private fun PowerButton(
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(160.dp)
+    ) {
+        Canvas(modifier = Modifier.size(160.dp)) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val rectSize = size.width * 0.65f
+            val rectOffset = rectSize / 2
+
+            drawRect(
+                color = if (isActive) CyberOrange.copy(alpha = 0.06f) else CyberOrange.copy(alpha = 0.02f),
+                topLeft = Offset(center.x - rectOffset, center.y - rectOffset),
+                size = androidx.compose.ui.geometry.Size(rectSize, rectSize),
+                style = Stroke(width = 1.dp.toPx()),
+                alpha = if (isActive) 0.6f else 0.15f
+            )
+        }
+
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = if (isActive) {
+                            listOf(Color(0xFF2A2A2A), Color(0xFF1A1A1A))
+                        } else {
+                            listOf(Color(0xFF222222), Color(0xFF151515))
+                        }
+                    )
+                )
+                .border(
+                    width = 1.5.dp,
+                    color = if (isActive) {
+                        CyberOrange.copy(alpha = 0.3f)
+                    } else {
+                        Color(0xFF333333)
+                    },
+                    shape = CircleShape
+                )
+                .clickable { onClick() }
+        ) {
+            if (isActive) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(
+                            brush = Brush.radialGradient(
+                                radius = 120f,
+                                colors = listOf(
+                                    CyberOrange.copy(alpha = 0.15f),
+                                    Color.Transparent
+                                )
+                            )
+                        )
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.PowerSettingsNew,
+                contentDescription = if (isActive) "Stop Proxy" else "Start Proxy",
+                tint = if (isActive) CyberOrange else Color(0xFF555555),
+                modifier = Modifier.size(42.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TargetConfigCard(
     ipAddress: String,
     port: String,
     onIpChange: (String) -> Unit,
     onPortChange: (String) -> Unit,
-    enabled: Boolean
+    editable: Boolean,
+    selectedProfileId: String?,
+    profiles: List<TargetProfile>,
+    onShowProfileSheet: () -> Unit,
+    onNavigateToProfiles: () -> Unit
 ) {
-    Column {
+    val selectedProfile = profiles.find { it.id == selectedProfileId }
+    val isCustom = selectedProfileId == null
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CyberCardSurface, RoundedCornerShape(10.dp))
+            .border(1.dp, CyberCardOutline, RoundedCornerShape(10.dp))
+            .padding(16.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Target Configuration",
-                fontSize = 14.sp,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = CyberSecondaryText,
+                letterSpacing = 1.sp
             )
 
-            if (!enabled) {
-                Text(
-                    text = "RUNNING",
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier
-                        .background(
-                            MaterialTheme.colorScheme.errorContainer,
-                            shape = RoundedCornerShape(2.dp)
-                        )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+            Spacer(modifier = Modifier.weight(1f))
+
+            IconButton(
+                onClick = onNavigateToProfiles,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Manage profiles",
+                    tint = CyberSecondaryText.copy(alpha = 0.5f),
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onShowProfileSheet() },
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            IconInputField(
-                value = ipAddress,
-                onValueChange = if (enabled) onIpChange else { _ -> },
-                placeholder = "Target IP",
+            Text(
+                text = if (isCustom) "Custom" else selectedProfile?.name ?: "Custom",
+                fontSize = 13.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium,
+                color = if (isCustom) CyberSecondaryText else CyberOrange
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Default.ArrowDropDown,
+                contentDescription = "Select profile",
+                tint = CyberSecondaryText,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 12.dp),
+            color = CyberCardOutline,
+            thickness = 1.dp
+        )
+
+        if (editable && isCustom) {
+            EditableConfigRow(
                 icon = Icons.Default.Dns,
-                modifier = Modifier.weight(1f),
-                enabled = enabled
+                label = "Target IP",
+                value = ipAddress,
+                onValueChange = onIpChange,
+                placeholder = "192.168.1.50"
             )
 
-            IconInputField(
-                value = port,
-                onValueChange = if (enabled) onPortChange else { _ -> },
-                placeholder = "Burp Port",
+            Spacer(modifier = Modifier.height(12.dp))
+
+            EditableConfigRow(
                 icon = Icons.Default.SettingsEthernet,
-                modifier = Modifier.weight(0.4f),
-                enabled = enabled
+                label = "Burp Port",
+                value = port,
+                onValueChange = onPortChange,
+                placeholder = "8080"
+            )
+        } else {
+            ConfigRow(
+                icon = Icons.Default.Dns,
+                label = "Target IP",
+                value = ipAddress
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = CyberCardOutline,
+                thickness = 1.dp
+            )
+
+            ConfigRow(
+                icon = Icons.Default.SettingsEthernet,
+                label = "Burp Port",
+                value = port
             )
         }
     }
 }
 
 @Composable
-private fun ActionButtons(
-    isConnected: Boolean,
-    onStartProxy: () -> Unit,
-    onStopProxy: () -> Unit
+private fun ConfigRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Button(
-            onClick = onStartProxy,
-            modifier = Modifier
-                .weight(1f)
-                .height(52.dp),
-            enabled = !isConnected,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-            ),
-            shape = RoundedCornerShape(4.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.PlayArrow,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "START PROXY",
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp
-            )
-        }
-
-        Button(
-            onClick = onStopProxy,
-            modifier = Modifier
-                .weight(1f)
-                .height(52.dp),
-            enabled = isConnected,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer
-            ),
-            shape = RoundedCornerShape(4.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Stop,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "STOP PROXY",
-                fontWeight = FontWeight.Bold,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp
-            )
-        }
-    }
-}
-
-@Composable
-private fun IconInputField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    icon: ImageVector,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    val alpha = if (enabled) 1f else 0.4f
-    val borderColor = if (enabled) {
-        MaterialTheme.colorScheme.outline
-    } else {
-        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-    }
-
-    Row(
-        modifier = modifier
-            .background(
-                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (enabled) 1f else 0.5f),
-                shape = RoundedCornerShape(4.dp)
-            )
-            .border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(4.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha),
-            modifier = Modifier.size(20.dp)
+            tint = CyberSecondaryText,
+            modifier = Modifier.size(18.dp)
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(10.dp))
 
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            enabled = enabled,
-            modifier = Modifier.weight(1f),
-            textStyle = TextStyle(
-                fontFamily = FontFamily.Monospace,
+        Column {
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.SansSerif,
+                color = CyberSecondaryText.copy(alpha = 0.6f)
+            )
+            Text(
+                text = value,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
-            ),
-            decorationBox = { innerTextField ->
-                Box {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = placeholder,
-                            style = TextStyle(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            )
-                        )
-                    }
-                    innerTextField()
-                }
-            }
-        )
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Medium,
+                color = Color.White
+            )
+        }
     }
 }
 
 @Composable
-private fun SystemLog(logs: List<String>) {
-    Column {
+private fun EditableConfigRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = CyberSecondaryText,
+            modifier = Modifier.size(18.dp)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                fontSize = 10.sp,
+                fontFamily = FontFamily.SansSerif,
+                color = CyberSecondaryText.copy(alpha = 0.6f)
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF0D0D0D), RoundedCornerShape(4.dp))
+                    .border(1.dp, CyberCardOutline, RoundedCornerShape(4.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.White
+                    ),
+                    decorationBox = { innerTextField ->
+                        Box {
+                            if (value.isEmpty()) {
+                                Text(
+                                    text = placeholder,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = CyberSecondaryText.copy(alpha = 0.4f)
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileSelectorSheet(
+    profiles: List<TargetProfile>,
+    selectedProfileId: String?,
+    onSelect: (String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CyberCardSurface,
+        contentColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "Select Profile",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                        if (selectedProfileId == null) CyberOrange.copy(alpha = 0.1f) else Color.Transparent
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (selectedProfileId == null) CyberOrange.copy(alpha = 0.3f) else Color.Transparent,
+                        shape = RoundedCornerShape(8.dp)
+                    )
+                    .clickable { onSelect(null) }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = null,
+                    tint = if (selectedProfileId == null) CyberOrange else CyberSecondaryText,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Custom",
+                    fontSize = 14.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium,
+                    color = if (selectedProfileId == null) CyberOrange else CyberSecondaryText
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            profiles.forEach { profile ->
+                val isSelected = profile.id == selectedProfileId
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (isSelected) CyberOrange.copy(alpha = 0.1f) else Color.Transparent
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) CyberOrange.copy(alpha = 0.3f) else Color.Transparent,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable { onSelect(profile.id) }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Dns,
+                        contentDescription = null,
+                        tint = if (isSelected) CyberOrange else CyberSecondaryText,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = profile.name,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isSelected) CyberOrange else Color.White
+                        )
+                        Text(
+                            text = "${profile.targetIp}:${profile.httpPort}",
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = CyberSecondaryText
+                        )
+                    }
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            tint = CyberOrange,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemLogCard(logs: List<String>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(CyberCardSurface, RoundedCornerShape(10.dp))
+            .border(1.dp, CyberCardOutline, RoundedCornerShape(10.dp))
+            .padding(16.dp)
+    ) {
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 8.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
                 imageVector = Icons.Default.Terminal,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
+                tint = CyberOrange,
+                modifier = Modifier.size(16.dp)
             )
 
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
                 text = "System Log",
-                fontSize = 14.sp,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = CyberSecondaryText,
+                letterSpacing = 1.sp
             )
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Black, shape = RoundedCornerShape(0.dp))
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(0.dp)
-                )
+                .background(Color(0xFF0A0A0A), RoundedCornerShape(6.dp))
+                .border(1.dp, CyberCardOutline, RoundedCornerShape(6.dp))
                 .padding(12.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 if (logs.isEmpty()) {
-                    Text(
-                        text = "> System standing by...",
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
-                    )
+                    LogLine(text = "> System standing by...")
                 } else {
-                    logs.forEach { log ->
-                        Text(
-                            text = log,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
-                        )
+                    logs.takeLast(15).forEach { log ->
+                        LogLine(text = log)
                     }
                 }
 
-                val infiniteTransition = rememberInfiniteTransition(label = "cursor")
-                val alpha by infiniteTransition.animateFloat(
+                val blinkTransition = rememberInfiniteTransition(label = "blink")
+                val cursorAlpha by blinkTransition.animateFloat(
                     initialValue = 0f,
                     targetValue = 1f,
-                    animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                        animation = androidx.compose.animation.core.tween(500),
-                        repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(500),
+                        repeatMode = RepeatMode.Reverse
                     ),
                     label = "cursor_alpha"
                 )
@@ -412,14 +740,34 @@ private fun SystemLog(logs: List<String>) {
                     text = "_",
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = alpha)
+                    color = CyberOrange.copy(alpha = cursorAlpha)
                 )
             }
         }
     }
 }
 
-private fun getCurrentTime(): String {
-    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-    return sdf.format(Date())
+@Composable
+private fun LogLine(text: String) {
+    val annotated = buildAnnotatedString {
+        val regex = Regex("\\[.*?\\]")
+        var lastIndex = 0
+        regex.findAll(text).forEach { match ->
+            append(text.substring(lastIndex, match.range.first))
+            withStyle(SpanStyle(color = CyberOrange)) {
+                append(match.value)
+            }
+            lastIndex = match.range.last + 1
+        }
+        if (lastIndex < text.length) {
+            append(text.substring(lastIndex))
+        }
+    }
+
+    Text(
+        text = annotated,
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+        color = Color(0xFFCCCCCC)
+    )
 }

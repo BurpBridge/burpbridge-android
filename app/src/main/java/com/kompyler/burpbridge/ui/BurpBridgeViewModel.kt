@@ -5,9 +5,16 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.UUID
 
 data class AppInfo(
     val name: String,
@@ -29,6 +36,14 @@ data class ProxySettings(
 data class LogEntry(
     val message: String,
     val timestamp: Long = System.currentTimeMillis()
+)
+
+data class TargetProfile(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val targetIp: String,
+    val httpPort: Int,
+    val httpsPort: Int = 8443
 )
 
 class BurpBridgeViewModel(application: Application) : AndroidViewModel(application) {
@@ -53,8 +68,19 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     private val _proxyAllApps = MutableStateFlow(false)
     val proxyAllApps: StateFlow<Boolean> = _proxyAllApps.asStateFlow()
 
+    private val _sessionDuration = MutableStateFlow("00:00:00")
+    val sessionDuration: StateFlow<String> = _sessionDuration.asStateFlow()
+    private var sessionTimerJob: Job? = null
+
+    private val _targetProfiles = MutableStateFlow<List<TargetProfile>>(emptyList())
+    val targetProfiles: StateFlow<List<TargetProfile>> = _targetProfiles.asStateFlow()
+
+    private val _selectedProfileId = MutableStateFlow<String?>(null)
+    val selectedProfileId: StateFlow<String?> = _selectedProfileId.asStateFlow()
+
     init {
         loadCertificateStatus()
+        loadProfiles()
     }
 
     private fun loadProxySettings(): ProxySettings {
@@ -82,10 +108,12 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun updateTargetIp(ip: String) {
+        _selectedProfileId.value = null
         saveProxySettings(_proxySettings.value.copy(targetIp = ip))
     }
 
     fun updateHttpPort(port: Int) {
+        _selectedProfileId.value = null
         saveProxySettings(_proxySettings.value.copy(httpPort = port))
     }
 
@@ -107,6 +135,33 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
 
     fun setVpnConnected(connected: Boolean) {
         _isVpnConnected.value = connected
+        if (connected) {
+            startSessionTimer()
+        } else {
+            stopSessionTimer()
+        }
+    }
+
+    private fun startSessionTimer() {
+        sessionTimerJob?.cancel()
+        _sessionDuration.value = "00:00:00"
+        var elapsed = 0L
+        sessionTimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                elapsed++
+                val h = elapsed / 3600
+                val m = (elapsed % 3600) / 60
+                val s = elapsed % 60
+                _sessionDuration.value = String.format("%02d:%02d:%02d", h, m, s)
+            }
+        }
+    }
+
+    private fun stopSessionTimer() {
+        sessionTimerJob?.cancel()
+        sessionTimerJob = null
+        _sessionDuration.value = "00:00:00"
     }
 
     fun loadInstalledApps(context: Context) {
@@ -166,7 +221,7 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun addLog(message: String) {
-        _logs.value = _logs.value + LogEntry(message)
+        _logs.value = (_logs.value + LogEntry(message)).takeLast(50)
     }
 
     fun clearLogs() {
@@ -185,5 +240,100 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     fun getTargetAddress(): String {
         val settings = _proxySettings.value
         return "${settings.targetIp}:${settings.httpPort}"
+    }
+
+    fun selectProfile(profileId: String?) {
+        if (profileId == null) {
+            _selectedProfileId.value = null
+            return
+        }
+        val profile = _targetProfiles.value.find { it.id == profileId } ?: return
+        _selectedProfileId.value = profileId
+        saveProxySettings(_proxySettings.value.copy(
+            targetIp = profile.targetIp,
+            httpPort = profile.httpPort,
+            httpsPort = profile.httpsPort
+        ))
+    }
+
+    fun addProfile(name: String, targetIp: String, httpPort: Int, httpsPort: Int = 8443) {
+        val profile = TargetProfile(
+            name = name,
+            targetIp = targetIp,
+            httpPort = httpPort,
+            httpsPort = httpsPort
+        )
+        _targetProfiles.value = _targetProfiles.value + profile
+        saveProfiles()
+    }
+
+    fun deleteProfile(profileId: String) {
+        _targetProfiles.value = _targetProfiles.value.filter { it.id != profileId }
+        if (_selectedProfileId.value == profileId) {
+            _selectedProfileId.value = null
+        }
+        saveProfiles()
+    }
+
+    fun updateProfile(profile: TargetProfile) {
+        _targetProfiles.value = _targetProfiles.value.map {
+            if (it.id == profile.id) profile else it
+        }
+        if (_selectedProfileId.value == profile.id) {
+            saveProxySettings(_proxySettings.value.copy(
+                targetIp = profile.targetIp,
+                httpPort = profile.httpPort,
+                httpsPort = profile.httpsPort
+            ))
+        }
+        saveProfiles()
+    }
+
+    private fun loadProfiles() {
+        val json = prefs.getString("target_profiles", null)
+        if (json != null) {
+            try {
+                val jsonArray = JSONArray(json)
+                val profiles = mutableListOf<TargetProfile>()
+                for (i in 0 until jsonArray.length()) {
+                    val obj = jsonArray.getJSONObject(i)
+                    profiles.add(TargetProfile(
+                        id = obj.getString("id"),
+                        name = obj.getString("name"),
+                        targetIp = obj.getString("targetIp"),
+                        httpPort = obj.getInt("httpPort"),
+                        httpsPort = obj.getInt("httpsPort")
+                    ))
+                }
+                _targetProfiles.value = profiles
+                return
+            } catch (_: Exception) { }
+        }
+        val defaults = getDefaultProfiles()
+        _targetProfiles.value = defaults
+        saveProfiles()
+    }
+
+    private fun saveProfiles() {
+        val jsonArray = JSONArray()
+        _targetProfiles.value.forEach { profile ->
+            val obj = JSONObject().apply {
+                put("id", profile.id)
+                put("name", profile.name)
+                put("targetIp", profile.targetIp)
+                put("httpPort", profile.httpPort)
+                put("httpsPort", profile.httpsPort)
+            }
+            jsonArray.put(obj)
+        }
+        prefs.edit().putString("target_profiles", jsonArray.toString()).apply()
+    }
+
+    private fun getDefaultProfiles(): List<TargetProfile> {
+        return listOf(
+            TargetProfile(name = "Localhost", targetIp = "127.0.0.1", httpPort = 8080),
+            TargetProfile(name = "LAN Proxy", targetIp = "192.168.1.50", httpPort = 8080),
+            TargetProfile(name = "Burp Cloud", targetIp = "10.0.0.1", httpPort = 8080)
+        )
     }
 }
