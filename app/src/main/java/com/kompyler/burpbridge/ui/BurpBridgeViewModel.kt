@@ -50,6 +50,9 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     private val _certificateInstalled = MutableStateFlow(false)
     val certificateInstalled: StateFlow<Boolean> = _certificateInstalled.asStateFlow()
 
+    private val _proxyAllApps = MutableStateFlow(false)
+    val proxyAllApps: StateFlow<Boolean> = _proxyAllApps.asStateFlow()
+
     init {
         loadCertificateStatus()
     }
@@ -142,7 +145,14 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
         _apps.value = _apps.value.map { it.copy(isSelected = false) }
     }
 
+    fun setProxyAllApps(enabled: Boolean) {
+        _proxyAllApps.value = enabled
+    }
+
     fun getSelectedApps(): List<String> {
+        if (_proxyAllApps.value) {
+            return _apps.value.map { it.packageName }
+        }
         return _apps.value.filter { it.isSelected }.map { it.packageName }
     }
 

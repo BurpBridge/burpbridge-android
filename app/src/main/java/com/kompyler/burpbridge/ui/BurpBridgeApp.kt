@@ -87,6 +87,7 @@ fun BurpBridgeApp() {
 
     val proxySettings by viewModel.proxySettings.collectAsState()
     val apps by viewModel.apps.collectAsState()
+    val proxyAllApps by viewModel.proxyAllApps.collectAsState()
 
     var isStopping by remember { mutableStateOf(false) }
 
@@ -214,12 +215,14 @@ fun BurpBridgeApp() {
                 onToggleApp = { viewModel.toggleAppSelection(it) },
                 onSelectAllApps = { viewModel.selectAllApps() },
                 onDeselectAllApps = { viewModel.deselectAllApps() },
+                onToggleProxyAll = { viewModel.setProxyAllApps(it) },
                 onClearLogs = { viewModel.clearLogs() },
                 onInstallCertificate = { /* TODO: Handle certificate install */ },
                 onUpdateAutoStart = { viewModel.updateAutoStartVpn(it) },
                 onUpdatePersistentNotification = { viewModel.updatePersistentNotification(it) },
                 onUpdateAlertOnIntercept = { viewModel.updateAlertOnIntercept(it) },
                 proxySettings = proxySettings,
+                proxyAllApps = proxyAllApps,
                 apps = apps,
                 logs = viewModel.logs.collectAsState().value
             )
@@ -244,12 +247,14 @@ private fun MainScaffold(
     onToggleApp: (String) -> Unit,
     onSelectAllApps: () -> Unit,
     onDeselectAllApps: () -> Unit,
+    onToggleProxyAll: (Boolean) -> Unit,
     onClearLogs: () -> Unit,
     onInstallCertificate: () -> Unit,
     onUpdateAutoStart: (Boolean) -> Unit,
     onUpdatePersistentNotification: (Boolean) -> Unit,
     onUpdateAlertOnIntercept: (Boolean) -> Unit,
     proxySettings: ProxySettings,
+    proxyAllApps: Boolean,
     apps: List<AppInfo>,
     logs: List<LogEntry>
 ) {
@@ -328,6 +333,8 @@ private fun MainScaffold(
                         onToggleAppSelection = onToggleApp,
                         onSelectAll = onSelectAllApps,
                         onDeselectAll = onDeselectAllApps,
+                        proxyAllApps = proxyAllApps,
+                        onToggleProxyAll = onToggleProxyAll,
                         apps = apps
                     )
                 }
