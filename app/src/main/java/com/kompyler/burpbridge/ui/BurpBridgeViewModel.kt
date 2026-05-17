@@ -46,6 +46,13 @@ data class TargetProfile(
     val httpsPort: Int = 8443
 )
 
+sealed class CertificateDownloadState {
+    object Idle : CertificateDownloadState()
+    object Downloading : CertificateDownloadState()
+    data class Success(val message: String) : CertificateDownloadState()
+    data class Failed(val errorMessage: String) : CertificateDownloadState()
+}
+
 class BurpBridgeViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences("burpbridge_prefs", Context.MODE_PRIVATE)
@@ -77,6 +84,9 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _selectedProfileId = MutableStateFlow<String?>(null)
     val selectedProfileId: StateFlow<String?> = _selectedProfileId.asStateFlow()
+
+    private val _certificateDownloadState = MutableStateFlow<CertificateDownloadState>(CertificateDownloadState.Idle)
+    val certificateDownloadState: StateFlow<CertificateDownloadState> = _certificateDownloadState.asStateFlow()
 
     init {
         loadCertificateStatus()
@@ -235,6 +245,28 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     fun setCertificateInstalled(installed: Boolean) {
         _certificateInstalled.value = installed
         prefs.edit().putBoolean("certificate_installed", installed).apply()
+    }
+
+    fun downloadBurpCertificate() {
+        val settings = _proxySettings.value
+        _certificateDownloadState.value = CertificateDownloadState.Downloading
+
+        viewModelScope.launch {
+            val certManager = com.kompyler.burpbridge.util.CertificateManager(getApplication())
+            val result = certManager.downloadCertificate(settings.targetIp, settings.httpPort)
+            _certificateDownloadState.value = result.fold(
+                onSuccess = {
+                    CertificateDownloadState.Success(certManager.getSuccessMessage())
+                },
+                onFailure = {
+                    CertificateDownloadState.Failed(certManager.getManualInstructions())
+                }
+            )
+        }
+    }
+
+    fun resetCertificateDownloadState() {
+        _certificateDownloadState.value = CertificateDownloadState.Idle
     }
 
     fun getTargetAddress(): String {

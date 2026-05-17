@@ -1,8 +1,7 @@
 package com.kompyler.burpbridge.ui.screens
 
-import android.content.Context
 import android.content.Intent
-import android.widget.Toast
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,8 +19,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kompyler.burpbridge.ui.CertificateDownloadState
 import com.kompyler.burpbridge.ui.theme.ThemeMode
-import com.kompyler.burpbridge.util.CertificateManager
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -31,6 +30,8 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     onClearLogs: () -> Unit,
     onInstallCertificate: () -> Unit,
+    certificateDownloadState: CertificateDownloadState = CertificateDownloadState.Idle,
+    onResetCertificateState: () -> Unit = {},
     proxySettings: com.kompyler.burpbridge.ui.ProxySettings,
     onUpdateHttpPort: (Int) -> Unit,
     onUpdateHttpsPort: (Int) -> Unit,
@@ -41,7 +42,6 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
-    val certificateManager = remember { CertificateManager(context) }
 
     Column(
         modifier = Modifier
@@ -65,18 +65,8 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         CACertificateSection(
-            onInstallCertificate = {
-                try {
-                    val intent = certificateManager.createInstallIntent()
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(
-                        context,
-                        certificateManager.getInstructions(),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
+            isDownloading = certificateDownloadState is CertificateDownloadState.Downloading,
+            onInstallCertificate = onInstallCertificate
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -105,6 +95,58 @@ fun SettingsScreen(
         )
 
         Spacer(modifier = Modifier.height(100.dp))
+    }
+
+    when (val state = certificateDownloadState) {
+        is CertificateDownloadState.Success -> {
+            AlertDialog(
+                onDismissRequest = onResetCertificateState,
+                title = {
+                    Text("Certificate Downloaded")
+                },
+                text = {
+                    Text(state.message)
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                        onResetCertificateState()
+                    }) {
+                        Text("Open Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onResetCertificateState) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        is CertificateDownloadState.Failed -> {
+            AlertDialog(
+                onDismissRequest = onResetCertificateState,
+                title = {
+                    Text("Download Failed")
+                },
+                text = {
+                    Text(state.errorMessage)
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        context.startActivity(Intent(Settings.ACTION_SECURITY_SETTINGS))
+                        onResetCertificateState()
+                    }) {
+                        Text("Open Settings")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onResetCertificateState) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+        else -> {}
     }
 }
 
@@ -211,7 +253,10 @@ private fun TargetProfilesSection(onNavigate: () -> Unit) {
 }
 
 @Composable
-private fun CACertificateSection(onInstallCertificate: () -> Unit) {
+private fun CACertificateSection(
+    isDownloading: Boolean = false,
+    onInstallCertificate: () -> Unit
+) {
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -253,6 +298,7 @@ private fun CACertificateSection(onInstallCertificate: () -> Unit) {
 
                 Button(
                     onClick = onInstallCertificate,
+                    enabled = !isDownloading,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -260,16 +306,24 @@ private fun CACertificateSection(onInstallCertificate: () -> Unit) {
                     ),
                     shape = RoundedCornerShape(4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Download,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
 
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = "DOWNLOAD BURP CA CERTIFICATE",
+                        text = if (isDownloading) "DOWNLOADING..." else "DOWNLOAD BURP CA CERTIFICATE",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace

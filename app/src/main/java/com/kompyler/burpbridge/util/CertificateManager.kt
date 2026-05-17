@@ -1,95 +1,116 @@
 package com.kompyler.burpbridge.util
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import android.os.Build
 import android.os.Environment
-import android.widget.Toast
-import androidx.core.content.FileProvider
+import android.provider.MediaStore
+import android.provider.Settings
 import java.io.File
 import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class CertificateManager(private val context: Context) {
 
     companion object {
-        private const val CERT_FILE_NAME = "burpbridge_ca.der"
+        private const val CERT_FILE_NAME = "burp_cacert.der"
     }
 
-    private val certDir: File
-        get() = File(context.filesDir, "certs").also { it.mkdirs() }
+    suspend fun downloadCertificate(ip: String, port: Int): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("http://$ip:$port/cert")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 10000
+            connection.readTimeout = 10000
 
-    fun prepareCertificateDownload(): Uri? {
-        return try {
-            val certFile = File(certDir, CERT_FILE_NAME)
-            
-            if (!certFile.exists()) {
-                createPlaceholderCertFile(certFile)
+            val responseCode = connection.responseCode
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                return@withContext Result.failure(
+                    Exception("Server returned HTTP $responseCode")
+                )
             }
 
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                certFile
-            )
+            val bytes = connection.inputStream.use { it.readBytes() }
+            if (bytes.isEmpty()) {
+                return@withContext Result.failure(
+                    Exception("Server returned an empty certificate")
+                )
+            }
+
+            val savedPath = saveToDownloads(bytes)
+            if (savedPath != null) {
+                Result.success(savedPath)
+            } else {
+                Result.failure(Exception("Could not save certificate to Downloads folder"))
+            }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    private fun saveToDownloads(data: ByteArray): String? {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            saveViaMediaStore(data)
+        } else {
+            saveLegacy(data)
+        }
+    }
+
+    private fun saveViaMediaStore(data: ByteArray): String? {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, CERT_FILE_NAME)
+            put(MediaStore.Downloads.MIME_TYPE, "application/x-x509-ca-cert")
+            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+        }
+        val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+        return uri?.let {
+            context.contentResolver.openOutputStream(it)?.use { stream ->
+                stream.write(data)
+            }
+            it.toString()
+        }
+    }
+
+    private fun saveLegacy(data: ByteArray): String? {
+        return try {
+            val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            dir.mkdirs()
+            val file = File(dir, CERT_FILE_NAME)
+            FileOutputStream(file).use { it.write(data) }
+            file.absolutePath
+        } catch (e: Exception) {
             null
         }
     }
 
-    private fun createPlaceholderCertFile(file: File) {
-        FileOutputStream(file).use { fos ->
-            fos.write(ByteArray(0))
+    fun createSecuritySettingsIntent(): Intent {
+        return Intent(Settings.ACTION_SECURITY_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
     }
 
-    fun createInstallIntent(): Intent {
-        val certFile = File(certDir, CERT_FILE_NAME)
-        
-        if (!certFile.exists()) {
-            createPlaceholderCertFile(certFile)
-        }
-
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            certFile
-        )
-
-        return Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/x-x509-ca-cert")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+    fun getSuccessMessage(): String {
+        return "The Burp CA certificate has been saved to your Downloads folder as '$CERT_FILE_NAME'.\n\n" +
+               "Due to Android security restrictions, you must install it manually.\n\n" +
+               "1. Go to Encryption & Credentials\n" +
+               "2. Tap 'Install a certificate'\n" +
+               "3. Select 'CA certificate'\n" +
+               "4. Choose the downloaded file"
     }
 
-    fun showInstallPrompt(onNoApp: () -> Unit) {
-        val intent = createInstallIntent()
-        
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            Toast.makeText(
-                context,
-                "Please download Burp CA certificate from Burp Suite and open it with this app to install",
-                Toast.LENGTH_LONG
-            ).show()
-            onNoApp()
-        }
-    }
-
-    fun getInstructions(): String {
-        return """
-            To intercept HTTPS traffic, you need to install the Burp CA certificate:
-
-            1. Open Burp Suite on your computer
-            2. Go to Proxy → Proxy settings → Import / Export CA certificate
-            3. Export as DER format
-            4. Transfer the certificate to this device
-            5. Open the certificate file and install it
-
-            For Android 7+ (Nougat), you need to:
-            - Root your device, OR
-            - Use Magisk to systemlessly install the certificate
-        """.trimIndent()
+    fun getManualInstructions(): String {
+        return "Could not download the certificate from the proxy server.\n\n" +
+               "To install the Burp CA certificate manually:\n\n" +
+               "1. Open Burp Suite on your computer\n" +
+               "2. Go to Proxy → Proxy settings → Import / Export CA certificate\n" +
+               "3. Export as DER format\n" +
+               "4. Transfer the file to this device\n" +
+               "5. Save it to your Downloads folder\n" +
+               "6. Go to Settings → Encryption & Credentials → Install a certificate → CA certificate\n" +
+               "7. Choose the file from Downloads"
     }
 }
