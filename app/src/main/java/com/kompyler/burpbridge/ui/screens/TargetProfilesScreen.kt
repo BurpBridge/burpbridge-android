@@ -25,10 +25,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kompyler.burpbridge.ui.TargetProfile
-import com.kompyler.burpbridge.ui.theme.CyberCardOutline
-import com.kompyler.burpbridge.ui.theme.CyberCardSurface
 import com.kompyler.burpbridge.ui.theme.CyberOrange
-import com.kompyler.burpbridge.ui.theme.CyberSecondaryText
+import com.kompyler.burpbridge.ui.theme.currentCyberColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,8 +66,10 @@ fun TargetProfilesScreen(
         )
     }
 
+    val cyber = currentCyberColors()
+
     Scaffold(
-        containerColor = Color(0xFF141414),
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -77,7 +77,7 @@ fun TargetProfilesScreen(
                         text = "Target Profiles",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 },
                 navigationIcon = {
@@ -85,7 +85,7 @@ fun TargetProfilesScreen(
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -99,7 +99,7 @@ fun TargetProfilesScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = CyberCardSurface
+                    containerColor = cyber.cardSurface
                 )
             )
         }
@@ -122,7 +122,7 @@ fun TargetProfilesScreen(
                         text = "No profiles yet.\nTap + to add one.",
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = CyberSecondaryText,
+                        color = cyber.secondaryText,
                         lineHeight = 22.sp
                     )
                 }
@@ -178,16 +178,17 @@ private fun ProfileCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val cyber = currentCyberColors()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .background(
-                if (isSelected) CyberOrange.copy(alpha = 0.06f) else CyberCardSurface
+                if (isSelected) CyberOrange.copy(alpha = 0.06f) else cyber.cardSurface
             )
             .border(
                 width = 1.dp,
-                color = if (isSelected) CyberOrange.copy(alpha = 0.3f) else CyberCardOutline,
+                color = if (isSelected) CyberOrange.copy(alpha = 0.3f) else cyber.cardOutline,
                 shape = RoundedCornerShape(10.dp)
             )
             .clickable { onSelect() }
@@ -204,7 +205,7 @@ private fun ProfileCard(
                         fontSize = 15.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium,
-                        color = if (isSelected) CyberOrange else Color.White
+                        color = if (isSelected) CyberOrange else MaterialTheme.colorScheme.onSurface
                     )
                     if (isSelected) {
                         Spacer(modifier = Modifier.width(8.dp))
@@ -228,7 +229,7 @@ private fun ProfileCard(
                     text = "${profile.targetIp}:${profile.httpPort}",
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = CyberSecondaryText
+                    color = cyber.secondaryText
                 )
             }
 
@@ -239,7 +240,7 @@ private fun ProfileCard(
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = "Edit",
-                    tint = CyberSecondaryText.copy(alpha = 0.6f),
+                    tint = cyber.secondaryText.copy(alpha = 0.6f),
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -268,6 +269,7 @@ private fun ProfileEditDialog(
     onSave: (name: String, targetIp: String, httpPort: Int, httpsPort: Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val cyber = currentCyberColors()
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var ip by remember { mutableStateOf(initial?.targetIp ?: "") }
     var httpPortText by remember { mutableStateOf(initial?.httpPort?.toString() ?: "") }
@@ -275,15 +277,15 @@ private fun ProfileEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CyberCardSurface,
-        titleContentColor = Color.White,
-        textContentColor = Color.White,
+        containerColor = cyber.cardSurface,
+        titleContentColor = MaterialTheme.colorScheme.onSurface,
+        textContentColor = MaterialTheme.colorScheme.onSurface,
         title = {
             Text(
                 text = title,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
         },
         text = {
@@ -335,7 +337,7 @@ private fun ProfileEditDialog(
                     text = "SAVE",
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = if (name.isNotBlank() && ip.isNotBlank()) CyberOrange else CyberSecondaryText
+                    color = if (name.isNotBlank() && ip.isNotBlank()) CyberOrange else cyber.secondaryText
                 )
             }
         },
@@ -344,7 +346,7 @@ private fun ProfileEditDialog(
                 Text(
                     text = "CANCEL",
                     fontFamily = FontFamily.Monospace,
-                    color = CyberSecondaryText
+                    color = cyber.secondaryText
                 )
             }
         }
@@ -360,6 +362,7 @@ private fun DialogTextField(
     modifier: Modifier = Modifier,
     keyboardType: androidx.compose.ui.text.input.KeyboardType = KeyboardType.Text
 ) {
+    val cyber = currentCyberColors()
     var isFocused by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -367,16 +370,16 @@ private fun DialogTextField(
         Text(
             text = label,
             fontSize = 11.sp,
-            color = CyberSecondaryText,
+            color = cyber.secondaryText,
             modifier = Modifier.padding(bottom = 4.dp)
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0D0D0D), RoundedCornerShape(8.dp))
+                .background(cyber.inputBackground, RoundedCornerShape(8.dp))
                 .border(
                     width = 1.5.dp,
-                    color = if (isFocused) CyberOrange else CyberCardOutline,
+                    color = if (isFocused) CyberOrange else cyber.cardOutline,
                     shape = RoundedCornerShape(8.dp)
                 )
                 .padding(horizontal = 14.dp, vertical = 14.dp)
@@ -400,7 +403,7 @@ private fun DialogTextField(
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 ),
                 decorationBox = { innerTextField ->
                     Box {
@@ -409,7 +412,7 @@ private fun DialogTextField(
                                 text = placeholder,
                                 fontSize = 14.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = CyberSecondaryText.copy(alpha = 0.4f)
+                                color = cyber.secondaryText.copy(alpha = 0.4f)
                             )
                         }
                         innerTextField()

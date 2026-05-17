@@ -35,11 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kompyler.burpbridge.ui.TargetProfile
 import com.kompyler.burpbridge.ui.theme.CyberBackground
-import com.kompyler.burpbridge.ui.theme.CyberCardOutline
-import com.kompyler.burpbridge.ui.theme.CyberCardSurface
-import com.kompyler.burpbridge.ui.theme.CyberGridDot
 import com.kompyler.burpbridge.ui.theme.CyberOrange
 import com.kompyler.burpbridge.ui.theme.CyberSecondaryText
+import com.kompyler.burpbridge.ui.theme.currentCyberColors
 
 @Composable
 fun DashboardScreen(
@@ -124,6 +122,7 @@ fun DashboardScreen(
 
 @Composable
 private fun DottedGridBackground() {
+    val cyber = currentCyberColors()
     Canvas(modifier = Modifier.fillMaxSize()) {
         val dotSpacing = 24.dp.toPx()
         val dotRadius = 1.2.dp.toPx()
@@ -132,7 +131,7 @@ private fun DottedGridBackground() {
             var y = dotSpacing
             while (y < size.height) {
                 drawCircle(
-                    color = CyberGridDot,
+                    color = cyber.gridDot,
                     radius = dotRadius,
                     center = Offset(x, y)
                 )
@@ -148,6 +147,7 @@ private fun DashboardTopBar(
     sessionDuration: String,
     isActive: Boolean
 ) {
+    val cyber = currentCyberColors()
     val pulseTransition = rememberInfiniteTransition(label = "pulse")
     val dotAlpha by pulseTransition.animateFloat(
         initialValue = 0.3f,
@@ -177,7 +177,7 @@ private fun DashboardTopBar(
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.SansSerif,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             letterSpacing = 2.sp
         )
 
@@ -186,12 +186,12 @@ private fun DashboardTopBar(
         Box(
             modifier = Modifier
                 .background(
-                    color = CyberCardSurface,
+                    color = cyber.cardSurface,
                     shape = RoundedCornerShape(6.dp)
                 )
                 .border(
                     width = 1.dp,
-                    color = CyberCardOutline,
+                    color = cyber.cardOutline,
                     shape = RoundedCornerShape(6.dp)
                 )
                 .padding(horizontal = 10.dp, vertical = 6.dp),
@@ -212,7 +212,7 @@ private fun DashboardTopBar(
                     fontSize = 13.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium,
-                    color = if (isActive) CyberOrange else CyberSecondaryText
+                    color = if (isActive) CyberOrange else cyber.secondaryText
                 )
             }
         }
@@ -233,14 +233,23 @@ private fun HeroSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = if (isActive) "PROXY ACTIVE" else "PROXY OFFLINE",
-                fontSize = 13.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                color = if (isActive) CyberOrange else CyberSecondaryText,
-                letterSpacing = 3.sp
-            )
+            Box(
+                modifier = Modifier
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = if (isActive) "PROXY ACTIVE" else "PROXY OFFLINE",
+                    fontSize = 13.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isActive) CyberOrange else CyberSecondaryText,
+                    letterSpacing = 3.sp
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
@@ -274,6 +283,8 @@ private fun PowerButton(
     isActive: Boolean,
     onClick: () -> Unit
 ) {
+    val cyber = currentCyberColors()
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier.size(160.dp)
@@ -300,9 +311,9 @@ private fun PowerButton(
                 .background(
                     brush = Brush.radialGradient(
                         colors = if (isActive) {
-                            listOf(Color(0xFF2A2A2A), Color(0xFF1A1A1A))
+                            listOf(cyber.powerButtonBg1, cyber.powerButtonBg2)
                         } else {
-                            listOf(Color(0xFF222222), Color(0xFF151515))
+                            listOf(cyber.powerButtonOff1, cyber.powerButtonOff2)
                         }
                     )
                 )
@@ -311,7 +322,7 @@ private fun PowerButton(
                     color = if (isActive) {
                         CyberOrange.copy(alpha = 0.3f)
                     } else {
-                        Color(0xFF333333)
+                        cyber.powerButtonBorder
                     },
                     shape = CircleShape
                 )
@@ -337,7 +348,7 @@ private fun PowerButton(
             Icon(
                 imageVector = Icons.Default.PowerSettingsNew,
                 contentDescription = if (isActive) "Stop Proxy" else "Start Proxy",
-                tint = if (isActive) CyberOrange else Color(0xFF555555),
+                tint = if (isActive) CyberOrange else cyber.secondaryText,
                 modifier = Modifier.size(42.dp)
             )
         }
@@ -356,14 +367,15 @@ private fun TargetConfigCard(
     onShowProfileSheet: () -> Unit,
     onNavigateToProfiles: () -> Unit
 ) {
+    val cyber = currentCyberColors()
     val selectedProfile = profiles.find { it.id == selectedProfileId }
     val isCustom = selectedProfileId == null
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CyberCardSurface, RoundedCornerShape(10.dp))
-            .border(1.dp, CyberCardOutline, RoundedCornerShape(10.dp))
+            .background(cyber.cardSurface, RoundedCornerShape(10.dp))
+            .border(1.dp, cyber.cardOutline, RoundedCornerShape(10.dp))
             .padding(16.dp)
     ) {
         Row(
@@ -375,7 +387,7 @@ private fun TargetConfigCard(
                 fontSize = 12.sp,
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.SemiBold,
-                color = CyberSecondaryText,
+                color = cyber.secondaryText,
                 letterSpacing = 1.sp
             )
 
@@ -388,7 +400,7 @@ private fun TargetConfigCard(
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = "Manage profiles",
-                    tint = CyberSecondaryText.copy(alpha = 0.5f),
+                    tint = cyber.secondaryText.copy(alpha = 0.5f),
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -405,20 +417,20 @@ private fun TargetConfigCard(
                 fontSize = 13.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Medium,
-                color = if (isCustom) CyberSecondaryText else CyberOrange
+                color = if (isCustom) cyber.secondaryText else CyberOrange
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = Icons.Default.ArrowDropDown,
                 contentDescription = "Select profile",
-                tint = CyberSecondaryText,
+                tint = cyber.secondaryText,
                 modifier = Modifier.size(16.dp)
             )
         }
 
         HorizontalDivider(
             modifier = Modifier.padding(vertical = 12.dp),
-            color = CyberCardOutline,
+            color = cyber.cardOutline,
             thickness = 1.dp
         )
 
@@ -450,7 +462,7 @@ private fun TargetConfigCard(
 
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
-                color = CyberCardOutline,
+                color = cyber.cardOutline,
                 thickness = 1.dp
             )
 
@@ -469,6 +481,7 @@ private fun ConfigRow(
     label: String,
     value: String
 ) {
+    val cyber = currentCyberColors()
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -476,7 +489,7 @@ private fun ConfigRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = CyberSecondaryText,
+            tint = cyber.secondaryText,
             modifier = Modifier.size(18.dp)
         )
 
@@ -487,14 +500,14 @@ private fun ConfigRow(
                 text = label,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.SansSerif,
-                color = CyberSecondaryText.copy(alpha = 0.6f)
+                color = cyber.secondaryText.copy(alpha = 0.6f)
             )
             Text(
                 text = value,
                 fontSize = 14.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Medium,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -509,6 +522,7 @@ private fun EditableConfigRow(
     placeholder: String,
     isNumeric: Boolean = false
 ) {
+    val cyber = currentCyberColors()
     var localValue by remember { mutableStateOf(value) }
     var isFocused by remember { mutableStateOf(false) }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -526,7 +540,7 @@ private fun EditableConfigRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = CyberSecondaryText,
+            tint = cyber.secondaryText,
             modifier = Modifier.size(18.dp)
         )
 
@@ -537,15 +551,15 @@ private fun EditableConfigRow(
                 text = label,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.SansSerif,
-                color = CyberSecondaryText.copy(alpha = 0.6f)
+                color = cyber.secondaryText.copy(alpha = 0.6f)
             )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF0D0D0D), RoundedCornerShape(6.dp))
+                    .background(cyber.inputBackground, RoundedCornerShape(6.dp))
                     .border(
                         width = 1.5.dp,
-                        color = if (isFocused) CyberOrange else CyberCardOutline,
+                        color = if (isFocused) CyberOrange else cyber.cardOutline,
                         shape = RoundedCornerShape(6.dp)
                     )
                     .padding(horizontal = 14.dp, vertical = 14.dp)
@@ -576,7 +590,7 @@ private fun EditableConfigRow(
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White
+                        color = MaterialTheme.colorScheme.onSurface
                     ),
                     decorationBox = { innerTextField ->
                         Box {
@@ -585,7 +599,7 @@ private fun EditableConfigRow(
                                     text = placeholder,
                                     fontSize = 14.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    color = CyberSecondaryText.copy(alpha = 0.4f)
+                                    color = cyber.secondaryText.copy(alpha = 0.4f)
                                 )
                             }
                             innerTextField()
@@ -605,10 +619,11 @@ private fun ProfileSelectorSheet(
     onSelect: (String?) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val cyber = currentCyberColors()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = CyberCardSurface,
-        contentColor = Color.White
+        containerColor = cyber.cardSurface,
+        contentColor = MaterialTheme.colorScheme.onSurface
     ) {
         Column(
             modifier = Modifier
@@ -620,7 +635,7 @@ private fun ProfileSelectorSheet(
                 text = "Select Profile",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
@@ -643,7 +658,7 @@ private fun ProfileSelectorSheet(
                 Icon(
                     imageVector = Icons.Default.Edit,
                     contentDescription = null,
-                    tint = if (selectedProfileId == null) CyberOrange else CyberSecondaryText,
+                    tint = if (selectedProfileId == null) CyberOrange else cyber.secondaryText,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -652,7 +667,7 @@ private fun ProfileSelectorSheet(
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium,
-                    color = if (selectedProfileId == null) CyberOrange else CyberSecondaryText
+                    color = if (selectedProfileId == null) CyberOrange else cyber.secondaryText
                 )
             }
 
@@ -679,7 +694,7 @@ private fun ProfileSelectorSheet(
                     Icon(
                         imageVector = Icons.Default.Dns,
                         contentDescription = null,
-                        tint = if (isSelected) CyberOrange else CyberSecondaryText,
+                        tint = if (isSelected) CyberOrange else cyber.secondaryText,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(12.dp))
@@ -689,13 +704,13 @@ private fun ProfileSelectorSheet(
                             fontSize = 14.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Medium,
-                            color = if (isSelected) CyberOrange else Color.White
+                            color = if (isSelected) CyberOrange else MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "${profile.targetIp}:${profile.httpPort}",
                             fontSize = 11.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = CyberSecondaryText
+                            color = cyber.secondaryText
                         )
                     }
                     if (isSelected) {
@@ -715,11 +730,12 @@ private fun ProfileSelectorSheet(
 
 @Composable
 private fun SystemLogCard(logs: List<String>) {
+    val cyber = currentCyberColors()
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CyberCardSurface, RoundedCornerShape(10.dp))
-            .border(1.dp, CyberCardOutline, RoundedCornerShape(10.dp))
+            .background(cyber.cardSurface, RoundedCornerShape(10.dp))
+            .border(1.dp, cyber.cardOutline, RoundedCornerShape(10.dp))
             .padding(16.dp)
     ) {
         Row(
@@ -739,7 +755,7 @@ private fun SystemLogCard(logs: List<String>) {
                 fontSize = 12.sp,
                 fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.SemiBold,
-                color = CyberSecondaryText,
+                color = cyber.secondaryText,
                 letterSpacing = 1.sp
             )
         }
@@ -749,8 +765,8 @@ private fun SystemLogCard(logs: List<String>) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0A0A0A), RoundedCornerShape(6.dp))
-                .border(1.dp, CyberCardOutline, RoundedCornerShape(6.dp))
+                .background(cyber.terminalBackground, RoundedCornerShape(6.dp))
+                .border(1.dp, cyber.cardOutline, RoundedCornerShape(6.dp))
                 .padding(12.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -786,6 +802,7 @@ private fun SystemLogCard(logs: List<String>) {
 
 @Composable
 private fun LogLine(text: String) {
+    val cyber = currentCyberColors()
     val annotated = buildAnnotatedString {
         val regex = Regex("\\[.*?\\]")
         var lastIndex = 0
@@ -805,6 +822,6 @@ private fun LogLine(text: String) {
         text = annotated,
         fontSize = 12.sp,
         fontFamily = FontFamily.Monospace,
-        color = Color(0xFFCCCCCC)
+        color = cyber.secondaryText
     )
 }

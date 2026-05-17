@@ -155,3 +155,17 @@ fun BurpBridgeTheme(
         )
     }
 }
+
+@Composable
+fun isCyberDarkTheme(): Boolean {
+    return when (LocalThemeMode.current) {
+        ThemeMode.DARK -> true
+        ThemeMode.LIGHT -> false
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
+}
+
+@Composable
+fun currentCyberColors(): CyberColorSet {
+    return if (isCyberDarkTheme()) CyberColorDark else CyberColorLight
+}

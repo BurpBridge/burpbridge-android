@@ -130,10 +130,74 @@ val OnTertiaryFixedVariantLight = Color(0xFF930012)
 // Scrim
 val Scrim = Color(0xFF000000)
 
-// Cyberpunk theme colors
+// Cyberpunk theme colors - Dark
 val CyberBackground = Color(0xFF141414)
 val CyberCardSurface = Color(0xFF1A1A1A)
 val CyberCardOutline = Color(0xFF332A25)
 val CyberGridDot = Color(0xFF242424)
 val CyberSecondaryText = Color(0xFF888888)
+val CyberInputBackground = Color(0xFF0D0D0D)
+val CyberTerminalBackground = Color(0xFF0A0A0A)
+val CyberPowerButtonBg1 = Color(0xFF2A2A2A)
+val CyberPowerButtonBg2 = Color(0xFF1A1A1A)
+val CyberPowerButtonOff1 = Color(0xFF222222)
+val CyberPowerButtonOff2 = Color(0xFF151515)
+
+// Cyberpunk theme colors - Light
+val CyberCardSurfaceLight = Color(0xFFFFF5F0)
+val CyberCardOutlineLight = Color(0xFFE5D5CC)
+val CyberGridDotLight = Color(0xFFE0D5CD)
+val CyberSecondaryTextLight = Color(0xFF6B5E55)
+val CyberInputBackgroundLight = Color(0xFFFFFCF7)
+val CyberTerminalBackgroundLight = Color(0xFFF5EDE5)
+val CyberPowerButtonBg1Light = Color(0xFFE0D5CD)
+val CyberPowerButtonBg2Light = Color(0xFFF5EDE5)
+val CyberPowerButtonOff1Light = Color(0xFFE8E0D8)
+val CyberPowerButtonOff2Light = Color(0xFFF5F0EA)
+
 val CyberOrange = Color(0xFFFF6633)
+
+data class CyberColorSet(
+    val cardSurface: Color,
+    val cardOutline: Color,
+    val gridDot: Color,
+    val secondaryText: Color,
+    val inputBackground: Color,
+    val terminalBackground: Color,
+    val powerButtonBg1: Color,
+    val powerButtonBg2: Color,
+    val powerButtonOff1: Color,
+    val powerButtonOff2: Color,
+    val powerButtonBorder: Color,
+    val powerButtonGlow: Color,
+)
+
+val CyberColorDark = CyberColorSet(
+    cardSurface = CyberCardSurface,
+    cardOutline = CyberCardOutline,
+    gridDot = CyberGridDot,
+    secondaryText = CyberSecondaryText,
+    inputBackground = CyberInputBackground,
+    terminalBackground = CyberTerminalBackground,
+    powerButtonBg1 = CyberPowerButtonBg1,
+    powerButtonBg2 = CyberPowerButtonBg2,
+    powerButtonOff1 = CyberPowerButtonOff1,
+    powerButtonOff2 = CyberPowerButtonOff2,
+    powerButtonBorder = Color(0xFF333333),
+    powerButtonGlow = Color(0x28000000),
+)
+
+val CyberColorLight = CyberColorSet(
+    cardSurface = CyberCardSurfaceLight,
+    cardOutline = CyberCardOutlineLight,
+    gridDot = CyberGridDotLight,
+    secondaryText = CyberSecondaryTextLight,
+    inputBackground = CyberInputBackgroundLight,
+    terminalBackground = CyberTerminalBackgroundLight,
+    powerButtonBg1 = CyberPowerButtonBg1Light,
+    powerButtonBg2 = CyberPowerButtonBg2Light,
+    powerButtonOff1 = CyberPowerButtonOff1Light,
+    powerButtonOff2 = CyberPowerButtonOff2Light,
+    powerButtonBorder = Color(0xFFD0C0B5),
+    powerButtonGlow = Color(0x0DFF6633),
+)
