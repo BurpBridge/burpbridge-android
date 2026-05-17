@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.security.KeyChain
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
@@ -29,39 +30,53 @@ class CertificateManager(private val context: Context) {
     )
 
     suspend fun downloadCertificate(ip: String, port: Int): Result<DownloadResult> = withContext(Dispatchers.IO) {
+        val urlStr = "http://$ip:$port/cert"
+        Log.d("BurpBridge-Cert", "Downloading certificate from $urlStr")
         try {
-            val url = URL("http://$ip:$port/cert")
+            val url = URL(urlStr)
             val connection = url.openConnection() as HttpURLConnection
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 
             val responseCode = connection.responseCode
+            Log.d("BurpBridge-Cert", "HTTP response code: $responseCode")
             if (responseCode != HttpURLConnection.HTTP_OK) {
+                Log.e("BurpBridge-Cert", "Server returned non-200: $responseCode")
                 return@withContext Result.failure(
                     Exception("Server returned HTTP $responseCode")
                 )
             }
 
             val bytes = connection.inputStream.use { it.readBytes() }
+            Log.d("BurpBridge-Cert", "Downloaded ${bytes.size} bytes")
             if (bytes.isEmpty()) {
+                Log.e("BurpBridge-Cert", "Server returned empty certificate")
                 return@withContext Result.failure(
                     Exception("Server returned an empty certificate")
                 )
             }
 
+            Log.d("BurpBridge-Cert", "Saving to Downloads/$CERT_DIR/")
             val saved = saveToDownloads(bytes)
             saved?.let {
+                Log.d("BurpBridge-Cert", "Certificate saved: ${it.filePath} (uri=${it.uri})")
                 Result.success(it)
-            } ?: Result.failure(Exception("Could not save certificate to Downloads/burpsuite/"))
+            } ?: run {
+                Log.e("BurpBridge-Cert", "Failed to save certificate to Downloads/$CERT_DIR/")
+                Result.failure(Exception("Could not save certificate to Downloads/$CERT_DIR/"))
+            }
         } catch (e: Exception) {
+            Log.e("BurpBridge-Cert", "Certificate download failed: ${e.message}", e)
             Result.failure(e)
         }
     }
 
     private fun saveToDownloads(data: ByteArray): DownloadResult? {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            Log.d("BurpBridge-Cert", "Using MediaStore for API ${Build.VERSION.SDK_INT}")
             saveViaMediaStore(data)
         } else {
+            Log.d("BurpBridge-Cert", "Using legacy file API for API ${Build.VERSION.SDK_INT}")
             saveLegacy(data)
         }
     }
@@ -72,16 +87,29 @@ class CertificateManager(private val context: Context) {
             put(MediaStore.Downloads.MIME_TYPE, "application/x-x509-ca-cert")
             put(MediaStore.Downloads.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$CERT_DIR")
         }
+        Log.d("BurpBridge-Cert", "Inserting into MediaStore.Downloads...")
         val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-        return uri?.let {
-            context.contentResolver.openOutputStream(it)?.use { stream ->
+        if (uri == null) {
+            Log.e("BurpBridge-Cert", "MediaStore.insert returned null URI")
+            return null
+        }
+        Log.d("BurpBridge-Cert", "MediaStore URI: $uri")
+        return try {
+            context.contentResolver.openOutputStream(uri)?.use { stream ->
                 stream.write(data)
+                Log.d("BurpBridge-Cert", "Wrote ${data.size} bytes to $uri")
+            } ?: run {
+                Log.e("BurpBridge-Cert", "openOutputStream returned null for $uri")
+                return null
             }
             DownloadResult(
                 bytes = data,
-                uri = it,
+                uri = uri,
                 filePath = "Downloads/$CERT_DIR/$CERT_FILE_NAME"
             )
+        } catch (e: Exception) {
+            Log.e("BurpBridge-Cert", "Error writing to MediaStore: ${e.message}", e)
+            null
         }
     }
 
@@ -91,20 +119,24 @@ class CertificateManager(private val context: Context) {
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                 CERT_DIR
             )
+            Log.d("BurpBridge-Cert", "Legacy save dir: ${dir.absolutePath}")
             dir.mkdirs()
             val file = File(dir, CERT_FILE_NAME)
             FileOutputStream(file).use { it.write(data) }
+            Log.d("BurpBridge-Cert", "Saved to ${file.absolutePath}")
             DownloadResult(
                 bytes = data,
                 uri = Uri.fromFile(file),
                 filePath = file.absolutePath
             )
         } catch (e: Exception) {
+            Log.e("BurpBridge-Cert", "Legacy save failed: ${e.message}", e)
             null
         }
     }
 
     fun createKeyChainInstallIntent(certBytes: ByteArray): Intent {
+        Log.d("BurpBridge-Cert", "Creating KeyChain install intent (${certBytes.size} bytes)")
         return KeyChain.createInstallIntent().apply {
             putExtra(KeyChain.EXTRA_CERTIFICATE, certBytes)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -112,6 +144,7 @@ class CertificateManager(private val context: Context) {
     }
 
     fun createFileInstallIntent(certUri: Uri): Intent {
+        Log.d("BurpBridge-Cert", "Creating file install intent for URI: $certUri")
         return Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(certUri, "application/x-x509-ca-cert")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

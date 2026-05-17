@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
@@ -251,25 +252,39 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
     fun downloadBurpCertificate() {
         val settings = _proxySettings.value
         val app = getApplication<Application>()
+        Log.d("BurpBridge-Cert", "User tapped Download CA cert (target=${settings.targetIp}:${settings.httpPort})")
         _certificateDownloadState.value = CertificateDownloadState.Downloading
 
         viewModelScope.launch {
             val certManager = com.kompyler.burpbridge.util.CertificateManager(app)
             val downloadUrl = certManager.getDownloadUrl(settings.targetIp, settings.httpPort)
+            Log.d("BurpBridge-Cert", "Beginning download from $downloadUrl")
             val result = certManager.downloadCertificate(settings.targetIp, settings.httpPort)
 
             _certificateDownloadState.value = result.fold(
                 onSuccess = { downloadResult ->
-                    val installed = try {
+                    Log.d("BurpBridge-Cert", "Download succeeded, trying KeyChain install intent...")
+                    val keyChainWorked = try {
                         val keyChainIntent = certManager.createKeyChainInstallIntent(downloadResult.bytes)
                         app.startActivity(keyChainIntent)
+                        Log.d("BurpBridge-Cert", "KeyChain install intent started successfully")
                         true
-                    } catch (_: Exception) {
+                    } catch (e: Exception) {
+                        Log.e("BurpBridge-Cert", "KeyChain install failed: ${e.message}", e)
+                        Log.d("BurpBridge-Cert", "Falling back to file install intent...")
+                        false
+                    }
+                    val installed = if (keyChainWorked) {
+                        true
+                    } else {
                         try {
                             val fileIntent = certManager.createFileInstallIntent(downloadResult.uri)
                             app.startActivity(fileIntent)
+                            Log.d("BurpBridge-Cert", "File install intent started successfully")
                             true
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            Log.e("BurpBridge-Cert", "File install also failed: ${e.message}", e)
+                            Log.d("BurpBridge-Cert", "Both install methods failed, showing manual instructions")
                             false
                         }
                     }
@@ -279,13 +294,15 @@ class BurpBridgeViewModel(application: Application) : AndroidViewModel(applicati
                         CertificateDownloadState.Downloaded(certManager.getDownloadedMessage())
                     }
                 },
-                onFailure = {
+                onFailure = { error ->
+                    Log.e("BurpBridge-Cert", "Download failed: ${error.message}")
                     CertificateDownloadState.Failed(
                         message = certManager.getFailedMessage(downloadUrl),
                         downloadUrl = downloadUrl
                     )
                 }
             )
+            Log.d("BurpBridge-Cert", "Final certificate state: ${_certificateDownloadState.value.javaClass.simpleName}")
         }
     }
 
