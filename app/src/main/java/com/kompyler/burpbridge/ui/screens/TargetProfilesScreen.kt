@@ -377,12 +377,14 @@ private fun DialogTextField(
                     color = if (isFocused) CyberOrange else CyberCardOutline,
                     shape = RoundedCornerShape(8.dp)
                 )
-                .onFocusChanged { isFocused = it.isFocused }
                 .padding(horizontal = 14.dp, vertical = 14.dp)
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { isFocused = it.isFocused },
                 singleLine = true,
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
                 cursorBrush = SolidColor(CyberOrange),

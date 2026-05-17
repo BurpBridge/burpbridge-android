@@ -508,10 +508,10 @@ private fun EditableConfigRow(
     placeholder: String,
     isNumeric: Boolean = false
 ) {
+    var localValue by remember { mutableStateOf(value) }
     var isFocused by remember { mutableStateOf(false) }
-    var localValue by remember(value) { mutableStateOf(value) }
 
-    LaunchedEffect(value, isFocused) {
+    LaunchedEffect(value) {
         if (!isFocused) {
             localValue = value
         }
@@ -546,7 +546,6 @@ private fun EditableConfigRow(
                         color = if (isFocused) CyberOrange else CyberCardOutline,
                         shape = RoundedCornerShape(6.dp)
                     )
-                    .onFocusChanged { isFocused = it.isFocused }
                     .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
                 BasicTextField(
@@ -559,6 +558,9 @@ private fun EditableConfigRow(
                             onValueChange(text)
                         }
                     },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { isFocused = it.isFocused },
                     singleLine = true,
                     cursorBrush = SolidColor(CyberOrange),
                     textStyle = TextStyle(
