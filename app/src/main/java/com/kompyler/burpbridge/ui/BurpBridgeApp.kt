@@ -1,5 +1,12 @@
 package com.kompyler.burpbridge.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.net.VpnService
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -10,9 +17,12 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kompyler.burpbridge.BurpBridgeVpnService
 import com.kompyler.burpbridge.ui.screens.AppsScreen
 import com.kompyler.burpbridge.ui.screens.DashboardScreen
 import com.kompyler.burpbridge.ui.screens.SettingsScreen
@@ -29,8 +39,8 @@ enum class Screen {
 sealed class BottomNavItem(
     val route: Screen,
     val title: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector,
+    val unselectedIcon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
     data object Dashboard : BottomNavItem(
         Screen.DASHBOARD,
@@ -56,9 +66,37 @@ sealed class BottomNavItem(
 
 @Composable
 fun BurpBridgeApp() {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val application = activity?.application as? com.kompyler.burpbridge.BurpBridgeApp
+    
+    val viewModel: BurpBridgeViewModel = viewModel(
+        factory = BurpBridgeViewModelFactory(context.applicationContext as com.kompyler.burpbridge.BurpBridgeApp)
+    )
+
     var currentScreen by remember { mutableStateOf(Screen.SPLASH) }
     var isVpnConnected by remember { mutableStateOf(false) }
     var themeMode by remember { mutableStateOf(ThemeMode.DARK) }
+
+    val proxySettings by viewModel.proxySettings.collectAsState()
+    val apps by viewModel.apps.collectAsState()
+
+    val vpnPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            startVpnService(context, viewModel.getTargetAddress())
+            isVpnConnected = true
+            viewModel.setVpnConnected(true)
+            viewModel.addLog("> Proxy started at ${getCurrentTime()}")
+        } else {
+            Toast.makeText(context, "VPN Permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadInstalledApps(context)
+    }
 
     when (currentScreen) {
         Screen.SPLASH -> {
@@ -76,7 +114,41 @@ fun BurpBridgeApp() {
                 themeMode = themeMode,
                 onThemeModeChange = { themeMode = it },
                 isVpnConnected = isVpnConnected,
-                onVpnStatusChange = { isVpnConnected = it }
+                onVpnStatusChange = { 
+                    isVpnConnected = it
+                    viewModel.setVpnConnected(it)
+                },
+                onStartProxy = {
+                    val intent = VpnService.prepare(context)
+                    if (intent != null) {
+                        vpnPermissionLauncher.launch(intent)
+                    } else {
+                        startVpnService(context, viewModel.getTargetAddress())
+                        isVpnConnected = true
+                        viewModel.setVpnConnected(true)
+                        viewModel.addLog("> Proxy started at ${getCurrentTime()}")
+                    }
+                },
+                onStopProxy = {
+                    stopVpnService(context)
+                    isVpnConnected = false
+                    viewModel.setVpnConnected(false)
+                    viewModel.addLog("> Proxy stopped at ${getCurrentTime()}")
+                },
+                onUpdateIp = { viewModel.updateTargetIp(it) },
+                onUpdateHttpPort = { viewModel.updateHttpPort(it) },
+                onUpdateHttpsPort = { viewModel.updateHttpsPort(it) },
+                onToggleApp = { viewModel.toggleAppSelection(it) },
+                onSelectAllApps = { viewModel.selectAllApps() },
+                onDeselectAllApps = { viewModel.deselectAllApps() },
+                onClearLogs = { viewModel.clearLogs() },
+                onInstallCertificate = { /* TODO: Handle certificate install */ },
+                onUpdateAutoStart = { viewModel.updateAutoStartVpn(it) },
+                onUpdatePersistentNotification = { viewModel.updatePersistentNotification(it) },
+                onUpdateAlertOnIntercept = { viewModel.updateAlertOnIntercept(it) },
+                proxySettings = proxySettings,
+                apps = apps,
+                logs = viewModel.logs.collectAsState().value
             )
         }
     }
@@ -90,7 +162,23 @@ private fun MainScaffold(
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     isVpnConnected: Boolean,
-    onVpnStatusChange: (Boolean) -> Unit
+    onVpnStatusChange: (Boolean) -> Unit,
+    onStartProxy: () -> Unit,
+    onStopProxy: () -> Unit,
+    onUpdateIp: (String) -> Unit,
+    onUpdateHttpPort: (Int) -> Unit,
+    onUpdateHttpsPort: (Int) -> Unit,
+    onToggleApp: (String) -> Unit,
+    onSelectAllApps: () -> Unit,
+    onDeselectAllApps: () -> Unit,
+    onClearLogs: () -> Unit,
+    onInstallCertificate: () -> Unit,
+    onUpdateAutoStart: (Boolean) -> Unit,
+    onUpdatePersistentNotification: (Boolean) -> Unit,
+    onUpdateAlertOnIntercept: (Boolean) -> Unit,
+    proxySettings: ProxySettings,
+    apps: List<AppInfo>,
+    logs: List<LogEntry>
 ) {
     val bottomNavItems = listOf(
         BottomNavItem.Dashboard,
@@ -151,15 +239,23 @@ private fun MainScaffold(
                 Screen.DASHBOARD -> {
                     DashboardScreen(
                         isVpnConnected = isVpnConnected,
-                        onVpnStatusChange = onVpnStatusChange
+                        onVpnStatusChange = onVpnStatusChange,
+                        onStartProxy = onStartProxy,
+                        onStopProxy = onStopProxy,
+                        targetIp = proxySettings.targetIp,
+                        httpPort = proxySettings.httpPort,
+                        onIpChange = onUpdateIp,
+                        onPortChange = onUpdateHttpPort,
+                        logs = logs.map { it.message }
                     )
                 }
 
                 Screen.APPS -> {
                     AppsScreen(
-                        onToggleAppSelection = { /* TODO: Handle app selection */ },
-                        onSelectAll = { /* TODO: Handle select all */ },
-                        onDeselectAll = { /* TODO: Handle deselect all */ }
+                        onToggleAppSelection = onToggleApp,
+                        onSelectAll = onSelectAllApps,
+                        onDeselectAll = onDeselectAllApps,
+                        apps = apps
                     )
                 }
 
@@ -167,8 +263,14 @@ private fun MainScaffold(
                     SettingsScreen(
                         currentThemeMode = themeMode,
                         onThemeModeChange = onThemeModeChange,
-                        onClearLogs = { /* TODO: Handle clear logs */ },
-                        onInstallCertificate = { /* TODO: Handle certificate install */ }
+                        onClearLogs = onClearLogs,
+                        onInstallCertificate = onInstallCertificate,
+                        proxySettings = proxySettings,
+                        onUpdateHttpPort = onUpdateHttpPort,
+                        onUpdateHttpsPort = onUpdateHttpsPort,
+                        onUpdateAutoStart = onUpdateAutoStart,
+                        onUpdatePersistentNotification = onUpdatePersistentNotification,
+                        onUpdateAlertOnIntercept = onUpdateAlertOnIntercept
                     )
                 }
 
@@ -176,4 +278,24 @@ private fun MainScaffold(
             }
         }
     }
+}
+
+private fun startVpnService(context: Context, targetAddress: String) {
+    val serviceIntent = Intent(context, BurpBridgeVpnService::class.java).apply {
+        putExtra("TARGET_ADDRESS", targetAddress)
+        action = "START_VPN"
+    }
+    context.startService(serviceIntent)
+}
+
+private fun stopVpnService(context: Context) {
+    val stopIntent = Intent(context, BurpBridgeVpnService::class.java).apply {
+        action = "STOP_VPN"
+    }
+    context.startService(stopIntent)
+}
+
+private fun getCurrentTime(): String {
+    val sdf = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+    return sdf.format(java.util.Date())
 }

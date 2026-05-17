@@ -1,161 +1,102 @@
 package com.kompyler.burpbridge.ui.screens
 
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BrightnessAuto
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.Numbers
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Router
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material3.Badge
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kompyler.burpbridge.ui.theme.ThemeMode
+import com.kompyler.burpbridge.util.CertificateManager
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
 fun SettingsScreen(
     currentThemeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
     onClearLogs: () -> Unit,
-    onInstallCertificate: () -> Unit
+    onInstallCertificate: () -> Unit,
+    proxySettings: com.kompyler.burpbridge.ui.ProxySettings,
+    onUpdateHttpPort: (Int) -> Unit,
+    onUpdateHttpsPort: (Int) -> Unit,
+    onUpdateAutoStart: (Boolean) -> Unit,
+    onUpdatePersistentNotification: (Boolean) -> Unit,
+    onUpdateAlertOnIntercept: (Boolean) -> Unit
 ) {
+    val context = LocalContext.current
     val scrollState = rememberScrollState()
+    val certificateManager = remember { CertificateManager(context) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
+        SettingsHeader()
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SystemSettingsSection()
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        CACertificateSection(
+            onInstallCertificate = {
+                try {
+                    val intent = certificateManager.createInstallIntent()
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(
+                        context,
+                        certificateManager.getInstructions(),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SettingsSection(title = "Connection") {
-            SettingsItem(
-                icon = Icons.Default.Router,
-                title = "Burp Suite Host",
-                subtitle = "192.168.1.50",
-                onClick = { }
-            )
-            SettingsItem(
-                icon = Icons.Default.Numbers,
-                title = "Burp Suite Port",
-                subtitle = "8443",
-                onClick = { }
-            )
-            SettingsToggleItem(
-                icon = Icons.Default.PowerSettingsNew,
-                title = "Auto-start VPN",
-                subtitle = "Start proxy on app launch",
-                isChecked = false,
-                onToggle = { }
-            )
-        }
+        ProxyModesSection(
+            httpPort = proxySettings.httpPort,
+            httpsPort = proxySettings.httpsPort,
+            onHttpPortChange = onUpdateHttpPort,
+            onHttpsPortChange = onUpdateHttpsPort
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        SettingsSection(title = "Appearance") {
-            ThemeSelectorItem(
-                currentMode = currentThemeMode,
-                onModeChange = onThemeModeChange
-            )
-        }
+        NotificationSettingsSection(
+            persistentNotification = proxySettings.persistentNotification,
+            alertOnIntercept = proxySettings.alertOnIntercept,
+            onPersistentNotificationChange = onUpdatePersistentNotification,
+            onAlertOnInterceptChange = onUpdateAlertOnIntercept
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        SettingsSection(title = "Security") {
-            SettingsItem(
-                icon = Icons.Default.Security,
-                title = "CA Certificate",
-                subtitle = "Tap to install Burp CA certificate",
-                onClick = onInstallCertificate,
-                showBadge = true,
-                badgeText = "Required"
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        SettingsSection(title = "Data") {
-            SettingsItem(
-                icon = Icons.Default.DeleteSweep,
-                title = "Clear Logs",
-                subtitle = "Remove all intercepted requests",
-                onClick = onClearLogs,
-                isDestructive = false
-            )
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        SettingsSection(title = "About") {
-            SettingsItem(
-                icon = Icons.Default.Info,
-                title = "Version",
-                subtitle = "1.0.0",
-                onClick = { }
-            )
-            SettingsItem(
-                icon = Icons.Default.Code,
-                title = "Build",
-                subtitle = "2026.05.17",
-                onClick = { }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        Text(
-            text = "BurpBridge - Transparent Proxy",
-            style = MaterialTheme.typography.bodySmall,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+        ThemeSection(
+            currentThemeMode = currentThemeMode,
+            onThemeModeChange = onThemeModeChange
         )
 
         Spacer(modifier = Modifier.height(100.dp))
@@ -163,18 +104,82 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable ColumnScope.() -> Unit
-) {
+private fun SettingsHeader() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Default.Security,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(28.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = "BURPBRIDGE",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Text(
+            text = getCurrentTime(),
+            fontSize = 12.sp,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SystemSettingsSection() {
     Column {
         Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
+            text = "System Settings",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
+
+        Text(
+            text = "Configure proxy routing, certificates, and alerts.",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+    }
+}
+
+@Composable
+private fun CACertificateSection(onInstallCertificate: () -> Unit) {
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.VerifiedUser,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = "CA Certificate Required",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(
@@ -183,90 +188,222 @@ private fun SettingsSection(
             shape = RoundedCornerShape(4.dp)
         ) {
             Column(
-                modifier = Modifier.padding(8.dp)
+                modifier = Modifier.padding(12.dp)
             ) {
-                content()
+                Text(
+                    text = "Install this in system settings to decrypt HTTPS traffic. Without this, intercepted secure connections will fail.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+
+                Button(
+                    onClick = onInstallCertificate,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Text(
+                        text = "DOWNLOAD BURP CA CERTIFICATE",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SettingsItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit,
-    isDestructive: Boolean = false,
-    showBadge: Boolean = false,
-    badgeText: String = ""
+private fun ProxyModesSection(
+    httpPort: Int,
+    httpsPort: Int,
+    onHttpPortChange: (Int) -> Unit,
+    onHttpsPortChange: (Int) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-            .padding(12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = if (isDestructive) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size(24.dp)
-        )
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.SettingsEthernet,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
 
-        Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isDestructive) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
-                if (showBadge) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Badge(
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
-                    ) {
-                        Text(
-                            text = badgeText,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontSize = 10.sp
-                        )
-                    }
-                }
-            }
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Proxy Modes",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = true,
+                        onClick = { },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "HTTP Proxy Port",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Text(
+                        text = httpPort.toString(),
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = false,
+                        onClick = { },
+                        colors = RadioButtonDefaults.colors(
+                            selectedColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "HTTPS Intercept Port",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Text(
+                        text = httpsPort.toString(),
+                        fontSize = 14.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun SettingsToggleItem(
-    icon: ImageVector,
+private fun NotificationSettingsSection(
+    persistentNotification: Boolean,
+    alertOnIntercept: Boolean,
+    onPersistentNotificationChange: (Boolean) -> Unit,
+    onAlertOnInterceptChange: (Boolean) -> Unit
+) {
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Notifications,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = "Notification Settings",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                NotificationToggle(
+                    title = "Persistent Notification",
+                    description = "Keep service active in background",
+                    isChecked = persistentNotification,
+                    onToggle = onPersistentNotificationChange
+                )
+
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                NotificationToggle(
+                    title = "Alert on Intercept",
+                    description = "Vibrate and pop-up when paused",
+                    isChecked = alertOnIntercept,
+                    onToggle = onAlertOnInterceptChange
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationToggle(
     title: String,
-    subtitle: String,
+    description: String,
     isChecked: Boolean,
     onToggle: (Boolean) -> Unit
 ) {
@@ -274,35 +411,26 @@ private fun SettingsToggleItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onToggle(!isChecked) }
-            .padding(12.dp),
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-
-        Spacer(modifier = Modifier.width(16.dp))
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                text = description,
+                fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         Switch(
             checked = isChecked,
-            onCheckedChange = onToggle,
+            onCheckedChange = { onToggle(it) },
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.primary,
                 checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
@@ -312,83 +440,89 @@ private fun SettingsToggleItem(
 }
 
 @Composable
-private fun ThemeSelectorItem(
-    currentMode: ThemeMode,
-    onModeChange: (ThemeMode) -> Unit
+private fun ThemeSection(
+    currentThemeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 12.dp)
+        ) {
             Icon(
                 imageVector = Icons.Default.Palette,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
             )
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = "Theme",
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                text = "Appearance",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
+        Card(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
+            ),
+            shape = RoundedCornerShape(4.dp)
         ) {
-            ThemeMode.entries.forEach { mode ->
-                ThemeModeButton(
-                    mode = mode,
-                    isSelected = currentMode == mode,
-                    onClick = { onModeChange(mode) },
-                    modifier = Modifier.weight(1f)
-                )
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ThemeButton(
+                        label = "System",
+                        icon = Icons.Default.BrightnessAuto,
+                        isSelected = currentThemeMode == ThemeMode.SYSTEM,
+                        onClick = { onThemeModeChange(ThemeMode.SYSTEM) },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ThemeButton(
+                        label = "Light",
+                        icon = Icons.Default.LightMode,
+                        isSelected = currentThemeMode == ThemeMode.LIGHT,
+                        onClick = { onThemeModeChange(ThemeMode.LIGHT) },
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    ThemeButton(
+                        label = "Dark",
+                        icon = Icons.Default.DarkMode,
+                        isSelected = currentThemeMode == ThemeMode.DARK,
+                        onClick = { onThemeModeChange(ThemeMode.DARK) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ThemeModeButton(
-    mode: ThemeMode,
+private fun ThemeButton(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val icon = when (mode) {
-        ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
-        ThemeMode.LIGHT -> Icons.Default.LightMode
-        ThemeMode.DARK -> Icons.Default.DarkMode
-    }
-    val label = when (mode) {
-        ThemeMode.SYSTEM -> "System"
-        ThemeMode.LIGHT -> "Light"
-        ThemeMode.DARK -> "Dark"
-    }
-
     Button(
         onClick = onClick,
         modifier = modifier.height(44.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-            contentColor = if (isSelected) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.surface,
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onSurface
         ),
         shape = RoundedCornerShape(4.dp)
     ) {
@@ -397,11 +531,17 @@ private fun ThemeModeButton(
             contentDescription = null,
             modifier = Modifier.size(18.dp)
         )
+
         Spacer(modifier = Modifier.width(4.dp))
+
         Text(
             text = label,
-            style = MaterialTheme.typography.labelMedium,
             fontSize = 12.sp
         )
     }
+}
+
+private fun getCurrentTime(): String {
+    val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+    return sdf.format(Date())
 }
