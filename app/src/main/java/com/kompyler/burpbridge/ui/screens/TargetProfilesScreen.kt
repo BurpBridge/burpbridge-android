@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -16,7 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -358,6 +359,8 @@ private fun DialogTextField(
     modifier: Modifier = Modifier,
     keyboardType: androidx.compose.ui.text.input.KeyboardType = KeyboardType.Text
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     Column(modifier = modifier) {
         Text(
             text = label,
@@ -368,15 +371,21 @@ private fun DialogTextField(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0D0D0D), RoundedCornerShape(6.dp))
-                .border(1.dp, CyberCardOutline, RoundedCornerShape(6.dp))
-                .padding(horizontal = 10.dp, vertical = 10.dp)
+                .background(Color(0xFF0D0D0D), RoundedCornerShape(8.dp))
+                .border(
+                    width = 1.5.dp,
+                    color = if (isFocused) CyberOrange else CyberCardOutline,
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .onFocusChanged { isFocused = it.isFocused }
+                .padding(horizontal = 14.dp, vertical = 14.dp)
         ) {
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
+                cursorBrush = SolidColor(CyberOrange),
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontSize = 14.sp,
                     fontFamily = FontFamily.Monospace,

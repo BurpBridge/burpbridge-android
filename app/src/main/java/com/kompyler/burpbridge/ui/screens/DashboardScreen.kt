@@ -18,9 +18,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -435,7 +437,8 @@ private fun TargetConfigCard(
                 label = "Burp Port",
                 value = port,
                 onValueChange = onPortChange,
-                placeholder = "8080"
+                placeholder = "8080",
+                isNumeric = true
             )
         } else {
             ConfigRow(
@@ -502,8 +505,18 @@ private fun EditableConfigRow(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    placeholder: String
+    placeholder: String,
+    isNumeric: Boolean = false
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+    var localValue by remember(value) { mutableStateOf(value) }
+
+    LaunchedEffect(value, isFocused) {
+        if (!isFocused) {
+            localValue = value
+        }
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -527,14 +540,27 @@ private fun EditableConfigRow(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF0D0D0D), RoundedCornerShape(4.dp))
-                    .border(1.dp, CyberCardOutline, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .background(Color(0xFF0D0D0D), RoundedCornerShape(6.dp))
+                    .border(
+                        width = 1.5.dp,
+                        color = if (isFocused) CyberOrange else CyberCardOutline,
+                        shape = RoundedCornerShape(6.dp)
+                    )
+                    .onFocusChanged { isFocused = it.isFocused }
+                    .padding(horizontal = 14.dp, vertical = 14.dp)
             ) {
                 BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
+                    value = localValue,
+                    onValueChange = { text ->
+                        localValue = text
+                        if (isNumeric) {
+                            text.toIntOrNull()?.let { onValueChange(text) }
+                        } else {
+                            onValueChange(text)
+                        }
+                    },
                     singleLine = true,
+                    cursorBrush = SolidColor(CyberOrange),
                     textStyle = TextStyle(
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace,
@@ -543,7 +569,7 @@ private fun EditableConfigRow(
                     ),
                     decorationBox = { innerTextField ->
                         Box {
-                            if (value.isEmpty()) {
+                            if (localValue.isEmpty()) {
                                 Text(
                                     text = placeholder,
                                     fontSize = 14.sp,

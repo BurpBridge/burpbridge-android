@@ -143,9 +143,15 @@ fun BurpBridgeApp() {
         context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
 
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val activeNetwork = connectivityManager.activeNetwork
-        val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
-        val isActuallyVpnConnected = networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        val allNetworks = connectivityManager.allNetworks
+        var isActuallyVpnConnected = false
+        for (network in allNetworks) {
+            val caps = connectivityManager.getNetworkCapabilities(network)
+            if (caps?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) {
+                isActuallyVpnConnected = true
+                break
+            }
+        }
 
         if (isActuallyVpnConnected) {
             Log.d("BurpBridgeApp", "VPN was already active on app start")
