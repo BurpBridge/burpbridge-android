@@ -65,6 +65,14 @@ fun DashboardScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        ActionButtons(
+            isConnected = isVpnConnected,
+            onStartProxy = onStartProxy,
+            onStopProxy = onStopProxy
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         SystemLog(logs = logs)
 
         Spacer(modifier = Modifier.height(100.dp))
@@ -171,6 +179,70 @@ private fun TargetConfiguration(
                 placeholder = "Burp Port",
                 icon = Icons.Default.SettingsEthernet,
                 modifier = Modifier.weight(0.4f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionButtons(
+    isConnected: Boolean,
+    onStartProxy: () -> Unit,
+    onStopProxy: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Button(
+            onClick = onStartProxy,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            enabled = !isConnected,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+            ),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "START PROXY",
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp
+            )
+        }
+
+        Button(
+            onClick = onStopProxy,
+            modifier = Modifier
+                .weight(1f)
+                .height(52.dp),
+            enabled = isConnected,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer
+            ),
+            shape = RoundedCornerShape(4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Stop,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "STOP PROXY",
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp
             )
         }
     }
