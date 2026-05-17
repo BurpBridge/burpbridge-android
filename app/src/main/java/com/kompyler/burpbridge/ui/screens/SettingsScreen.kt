@@ -76,15 +76,6 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        ProxyModesSection(
-            httpPort = proxySettings.httpPort,
-            httpsPort = proxySettings.httpsPort,
-            onHttpPortChange = onUpdateHttpPort,
-            onHttpsPortChange = onUpdateHttpsPort
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
         NotificationSettingsSection(
             persistentNotification = proxySettings.persistentNotification,
             alertOnIntercept = proxySettings.alertOnIntercept,
@@ -387,120 +378,6 @@ private fun CACertificateSection(
 }
 
 @Composable
-private fun ProxyModesSection(
-    httpPort: Int,
-    httpsPort: Int,
-    onHttpPortChange: (Int) -> Unit,
-    onHttpsPortChange: (Int) -> Unit
-) {
-    Column {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.SettingsEthernet,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = "Proxy Modes",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer
-            ),
-            shape = RoundedCornerShape(4.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = true,
-                        onClick = { },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "HTTP Proxy Port",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Text(
-                        text = httpPort.toString(),
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { }
-                        .padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(
-                        selected = false,
-                        onClick = { },
-                        colors = RadioButtonDefaults.colors(
-                            selectedColor = MaterialTheme.colorScheme.primary
-                        )
-                    )
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "HTTPS Intercept Port",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Text(
-                        text = httpsPort.toString(),
-                        fontSize = 14.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun NotificationSettingsSection(
     persistentNotification: Boolean,
     alertOnIntercept: Boolean,
@@ -538,8 +415,8 @@ private fun NotificationSettingsSection(
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 NotificationToggle(
-                    title = "Persistent Notification",
-                    description = "Keep service active in background",
+                    title = "Lock Notification",
+                    description = "Prevent the notification from being dismissed by swiping",
                     isChecked = persistentNotification,
                     onToggle = onPersistentNotificationChange
                 )
@@ -550,8 +427,8 @@ private fun NotificationSettingsSection(
                 )
 
                 NotificationToggle(
-                    title = "Alert on Intercept",
-                    description = "Vibrate and pop-up when paused",
+                    title = "Start/Stop Alerts",
+                    description = "Show a pop-up when VPN starts or stops",
                     isChecked = alertOnIntercept,
                     onToggle = onAlertOnInterceptChange
                 )

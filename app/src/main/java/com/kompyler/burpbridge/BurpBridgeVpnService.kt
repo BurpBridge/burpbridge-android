@@ -23,6 +23,7 @@ class BurpBridgeVpnService : VpnService() {
     companion object {
         const val ACTION_START = "com.kompyler.burpbridge.START_VPN"
         const val ACTION_STOP = "com.kompyler.burpbridge.STOP_VPN"
+        const val ACTION_RESHOW = "com.kompyler.burpbridge.RESHOW"
         const val ACTION_STATUS = "com.kompyler.burpbridge.STATUS_CHANGED"
         const val EXTRA_VPN_STATUS = "vpn_status"
         const val EXTRA_PERSISTENT_NOTIFICATION = "persistent_notification"
@@ -78,6 +79,15 @@ class BurpBridgeVpnService : VpnService() {
                 broadcastStatus(VPN_STATUS_STARTING)
                 startVpn(targetAddress)
             }
+            ACTION_RESHOW -> {
+                Log.d("BurpBridge", "Notification dismissed, reshowing")
+                if (persistentNotificationEnabled) {
+                    handler.postDelayed({
+                        showForegroundNotification()
+                    }, 300)
+                }
+                return START_STICKY
+            }
         }
         
         return START_STICKY
@@ -99,12 +109,12 @@ class BurpBridgeVpnService : VpnService() {
     }
 
     private fun showForegroundNotification() {
-        if (!persistentNotificationEnabled) {
-            Log.d("BurpBridge", "Persistent notification disabled, skipping")
-            return
+        val priority = if (persistentNotificationEnabled) {
+            NotificationCompat.PRIORITY_MAX
+        } else {
+            NotificationCompat.PRIORITY_LOW
         }
 
-        // Intent to open app when notification is tapped
         val openAppIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
@@ -113,12 +123,19 @@ class BurpBridgeVpnService : VpnService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Disconnect action
         val disconnectIntent = Intent(this, BurpBridgeVpnService::class.java).apply {
             action = ACTION_STOP
         }
         val disconnectPendingIntent = PendingIntent.getService(
             this, 1, disconnectIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val reshowIntent = Intent(this, BurpBridgeVpnService::class.java).apply {
+            action = ACTION_RESHOW
+        }
+        val reshowPendingIntent = PendingIntent.getService(
+            this, 2, reshowIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
@@ -132,8 +149,9 @@ class BurpBridgeVpnService : VpnService() {
                 "Disconnect",
                 disconnectPendingIntent
             )
-            .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setDeleteIntent(reshowPendingIntent)
+            .setOngoing(persistentNotificationEnabled)
+            .setPriority(priority)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
 
