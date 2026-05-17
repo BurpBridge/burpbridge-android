@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.util.Log
 import android.widget.Toast
@@ -126,9 +128,13 @@ fun BurpBridgeApp() {
         val filter = IntentFilter(BurpBridgeVpnService.ACTION_STATUS)
         context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
 
-        // Check if VPN is already running when app starts
-        val vpnIntent = android.net.VpnService.prepare(context)
-        if (vpnIntent == null) {
+        // Check if VPN is actually running when app starts
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = connectivityManager.activeNetwork
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val isActuallyVpnConnected = networkCapabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+
+        if (isActuallyVpnConnected) {
             Log.d("BurpBridgeApp", "VPN was already active on app start")
             isVpnConnected = true
             viewModel.setVpnConnected(true)

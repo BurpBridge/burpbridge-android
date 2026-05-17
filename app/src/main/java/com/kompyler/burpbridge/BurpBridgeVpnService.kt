@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.pm.ServiceInfo
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
@@ -122,7 +123,7 @@ class BurpBridgeVpnService : VpnService() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("BurpBridge Proxy Active")
             .setContentText("Intercepting network traffic")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentIntent(openAppPendingIntent)
             .addAction(
                 android.R.drawable.ic_menu_close_clear_cancel,
@@ -134,7 +135,7 @@ class BurpBridgeVpnService : VpnService() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
 
-        startForeground(NOTIFICATION_ID, notification)
+        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         Log.d("BurpBridge", "Foreground notification started")
     }
 
@@ -152,7 +153,7 @@ class BurpBridgeVpnService : VpnService() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)
             .build()
