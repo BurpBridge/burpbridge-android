@@ -1,9 +1,12 @@
 package com.kompyler.burpbridge.ui
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.VpnService
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kompyler.burpbridge.BurpBridgeVpnService
 import com.kompyler.burpbridge.ui.screens.AppsScreen
@@ -81,14 +83,68 @@ fun BurpBridgeApp() {
     val proxySettings by viewModel.proxySettings.collectAsState()
     val apps by viewModel.apps.collectAsState()
 
+    var isStopping by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                when (intent.action) {
+                    BurpBridgeVpnService.ACTION_STATUS -> {
+                        val status = intent.getStringExtra(BurpBridgeVpnService.EXTRA_VPN_STATUS)
+                        
+                        when (status) {
+                            BurpBridgeVpnService.VPN_STATUS_STARTING -> {
+                                isStopping = false
+                            }
+                            BurpBridgeVpnService.VPN_STATUS_STARTED -> {
+                                isVpnConnected = true
+                                isStopping = false
+                                viewModel.setVpnConnected(true)
+                                viewModel.addLog("> Proxy started at ${getCurrentTime()}")
+                                if (proxySettings.alertOnIntercept) {
+                                    Toast.makeText(context, "BurpBridge started - intercepting traffic", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            BurpBridgeVpnService.VPN_STATUS_STOPPING -> {
+                                isStopping = true
+                            }
+                            BurpBridgeVpnService.VPN_STATUS_STOPPED -> {
+                                isVpnConnected = false
+                                isStopping = false
+                                viewModel.setVpnConnected(false)
+                                viewModel.addLog("> Proxy stopped at ${getCurrentTime()}")
+                                if (proxySettings.alertOnIntercept) {
+                                    Toast.makeText(context, "BurpBridge stopped", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter(BurpBridgeVpnService.ACTION_STATUS)
+        context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+
+        // Check if VPN is already running when app starts
+        val vpnIntent = android.net.VpnService.prepare(context)
+        if (vpnIntent == null) {
+            Log.d("BurpBridgeApp", "VPN was already active on app start")
+            isVpnConnected = true
+            viewModel.setVpnConnected(true)
+            viewModel.addLog("> Proxy resumed at ${getCurrentTime()}")
+        }
+
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
+
     val vpnPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            startVpnService(context, viewModel.getTargetAddress())
-            isVpnConnected = true
-            viewModel.setVpnConnected(true)
-            viewModel.addLog("> Proxy started at ${getCurrentTime()}")
+            startVpnService(context, viewModel.getTargetAddress(), proxySettings)
         } else {
             Toast.makeText(context, "VPN Permission denied", Toast.LENGTH_SHORT).show()
         }
@@ -123,17 +179,11 @@ fun BurpBridgeApp() {
                     if (intent != null) {
                         vpnPermissionLauncher.launch(intent)
                     } else {
-                        startVpnService(context, viewModel.getTargetAddress())
-                        isVpnConnected = true
-                        viewModel.setVpnConnected(true)
-                        viewModel.addLog("> Proxy started at ${getCurrentTime()}")
+                        startVpnService(context, viewModel.getTargetAddress(), proxySettings)
                     }
                 },
                 onStopProxy = {
                     stopVpnService(context)
-                    isVpnConnected = false
-                    viewModel.setVpnConnected(false)
-                    viewModel.addLog("> Proxy stopped at ${getCurrentTime()}")
                 },
                 onUpdateIp = { viewModel.updateTargetIp(it) },
                 onUpdateHttpPort = { viewModel.updateHttpPort(it) },
@@ -280,17 +330,19 @@ private fun MainScaffold(
     }
 }
 
-private fun startVpnService(context: Context, targetAddress: String) {
+private fun startVpnService(context: Context, targetAddress: String, settings: ProxySettings) {
     val serviceIntent = Intent(context, BurpBridgeVpnService::class.java).apply {
+        action = BurpBridgeVpnService.ACTION_START
         putExtra("TARGET_ADDRESS", targetAddress)
-        action = "START_VPN"
+        putExtra(BurpBridgeVpnService.EXTRA_PERSISTENT_NOTIFICATION, settings.persistentNotification)
+        putExtra(BurpBridgeVpnService.EXTRA_ALERT_ON_INTERCEPT, settings.alertOnIntercept)
     }
     context.startService(serviceIntent)
 }
 
 private fun stopVpnService(context: Context) {
     val stopIntent = Intent(context, BurpBridgeVpnService::class.java).apply {
-        action = "STOP_VPN"
+        action = BurpBridgeVpnService.ACTION_STOP
     }
     context.startService(stopIntent)
 }

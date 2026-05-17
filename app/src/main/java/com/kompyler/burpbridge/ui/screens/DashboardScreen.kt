@@ -60,7 +60,8 @@ fun DashboardScreen(
             ipAddress = targetIp,
             port = httpPort.toString(),
             onIpChange = onIpChange,
-            onPortChange = { onPortChange(it.toIntOrNull() ?: httpPort) }
+            onPortChange = { onPortChange(it.toIntOrNull() ?: httpPort) },
+            enabled = !isVpnConnected
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -150,16 +151,40 @@ private fun TargetConfiguration(
     ipAddress: String,
     port: String,
     onIpChange: (String) -> Unit,
-    onPortChange: (String) -> Unit
+    onPortChange: (String) -> Unit,
+    enabled: Boolean
 ) {
     Column {
-        Text(
-            text = "Target Configuration",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Target Configuration",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            if (!enabled) {
+                Text(
+                    text = "RUNNING",
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .background(
+                            MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(2.dp)
+                        )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -167,18 +192,20 @@ private fun TargetConfiguration(
         ) {
             IconInputField(
                 value = ipAddress,
-                onValueChange = onIpChange,
+                onValueChange = if (enabled) onIpChange else { _ -> },
                 placeholder = "Target IP",
                 icon = Icons.Default.Dns,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                enabled = enabled
             )
 
             IconInputField(
                 value = port,
-                onValueChange = onPortChange,
+                onValueChange = if (enabled) onPortChange else { _ -> },
                 placeholder = "Burp Port",
                 icon = Icons.Default.SettingsEthernet,
-                modifier = Modifier.weight(0.4f)
+                modifier = Modifier.weight(0.4f),
+                enabled = enabled
             )
         }
     }
@@ -254,17 +281,25 @@ private fun IconInputField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     icon: ImageVector,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
+    val alpha = if (enabled) 1f else 0.4f
+    val borderColor = if (enabled) {
+        MaterialTheme.colorScheme.outline
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+    }
+
     Row(
         modifier = modifier
             .background(
-                color = MaterialTheme.colorScheme.surfaceContainer,
+                color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = if (enabled) 1f else 0.5f),
                 shape = RoundedCornerShape(4.dp)
             )
             .border(
                 width = 1.dp,
-                color = MaterialTheme.colorScheme.outline,
+                color = borderColor,
                 shape = RoundedCornerShape(4.dp)
             )
             .padding(horizontal = 12.dp, vertical = 14.dp),
@@ -273,7 +308,7 @@ private fun IconInputField(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha),
             modifier = Modifier.size(20.dp)
         )
 
@@ -282,11 +317,12 @@ private fun IconInputField(
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             modifier = Modifier.weight(1f),
             textStyle = TextStyle(
                 fontFamily = FontFamily.Monospace,
                 fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = alpha)
             ),
             decorationBox = { innerTextField ->
                 Box {
