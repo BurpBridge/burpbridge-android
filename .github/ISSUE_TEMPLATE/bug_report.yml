@@ -1,0 +1,24 @@
+name: Bug report
+description: Report a reproducible Android app, VPN service, or build problem.
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include a minimal example and redact sensitive traffic.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Android API level, device/emulator, app version or commit, Burp listener configuration, and relevant redacted logs.
+    validations:
+      required: true
