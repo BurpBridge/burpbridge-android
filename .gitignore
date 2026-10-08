@@ -14,3 +14,7 @@
 .cxx
 local.properties
 /.kotlin/
+
+# Python runtime metadata checks
+__pycache__/
+*.py[cod]
