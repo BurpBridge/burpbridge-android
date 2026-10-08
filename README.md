@@ -5,7 +5,7 @@ An Android VPN proxy tool that routes device traffic through a Burp Suite proxy 
 ## Features
 
 - **VPN Proxy** — Routes selected app traffic through any Burp Suite proxy (IP + port)
-- **App Selector** — Choose individual apps to proxy or enable "Proxy All"
+- **App Selector UI** — Choose individual apps or enable "Proxy All"; VPN allowlist integration is still pending ([#1](https://github.com/BurpBridge/burpbridge-android/issues/1))
 - **Target Profiles** — Save and switch between multiple proxy configurations
 - **Session Timer** — Tracks active proxy session duration
 - **System Logs** — Terminal-style log with real-time proxy events
@@ -28,7 +28,7 @@ An Android VPN proxy tool that routes device traffic through a Burp Suite proxy 
 
 ### Prerequisites
 
-- Android Studio Ladybug (2024.2.1+) or later
+- Android Studio compatible with Android Gradle Plugin 9.2.1
 - JDK 21 (selected by the Gradle daemon criteria)
 - Android SDK platform 36.1 and build tools 36.0.0
 
@@ -122,3 +122,12 @@ limitations under the License.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, beginner issues, and required DCO/GPG commit signing. Report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+## Known limitations
+
+- App selections do not yet configure the VPN service's capture policy ([#1](https://github.com/BurpBridge/burpbridge-android/issues/1)).
+- The dashboard can mistake another active VPN for BurpBridge ([#4](https://github.com/BurpBridge/burpbridge-android/issues/4)).
+- Tests are still templates; device traffic behavior needs meaningful coverage ([#7](https://github.com/BurpBridge/burpbridge-android/issues/7)).
+- The native AAR needs a documented, pinned source build ([#6](https://github.com/BurpBridge/burpbridge-android/issues/6)).
+
+See the [issue backlog](https://github.com/BurpBridge/burpbridge-android/issues) for scoped contributions.
