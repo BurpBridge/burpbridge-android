@@ -29,14 +29,14 @@ An Android VPN proxy tool that routes device traffic through a Burp Suite proxy 
 ### Prerequisites
 
 - Android Studio Ladybug (2024.2.1+) or later
-- JDK 17+
-- Android SDK API 36
+- JDK 21 (selected by the Gradle daemon criteria)
+- Android SDK platform 36.1 and build tools 36.0.0
 
 ### Building
 
 ```bash
-git clone https://github.com/kompyler/burpbridge.git
-cd burpbridge
+git clone https://github.com/BurpBridge/burpbridge-android.git
+cd burpbridge-android
 ./gradlew assembleDebug
 ```
 
@@ -118,3 +118,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, beginner issues, and required DCO/GPG commit signing. Report security issues privately as described in [SECURITY.md](SECURITY.md).
